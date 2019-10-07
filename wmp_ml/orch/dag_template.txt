@@ -1,0 +1,58 @@
+#####################################################################################
+#
+#
+# 	Airflow DAG Generated Experiment: {} # Title
+#  
+#	Author: {} 
+#	Date: {}
+#
+#####################################################################################
+
+
+#####################################################################################
+# External Library and Module Imports
+#####################################################################################
+
+# System and OS
+import os
+import sys
+
+# Airflow DAG
+from airflow import DAG
+
+#Airflow Operators
+from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.email_operator import EmailOperator
+from airflow.operators.postgres_operator import PostgresOperator
+from airflow.operators.subdag_operator import SubbDagOperator
+
+#Datetime information
+from datetime import datetime, timedelta
+
+
+{}
+
+
+#####################################################################################
+# DAG Construction
+#####################################################################################
+
+default_args = {}
+
+dag = DAG( {}, 
+		   default_args=default_args, 
+		   schedule_interval='@Once')
+
+#####################################################################################
+# Operators Construction
+#####################################################################################
+
+{}
+
+#####################################################################################
+# Operator Association
+#####################################################################################
+
+{}
