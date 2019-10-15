@@ -43,23 +43,60 @@ class DagGenerator():
 	and generate an airflow ML experiment for you.
 	'''
 	def __init__(self, config):
+
+		#Configuration variables
 		self.config = config
 		self.dag_config = config['config']
-		self.output_dag = None
+
+		#Owner of the experiment
 		self.author = self.config['dag']['owner']
+
+		#Name of the experiment
 		self.dag_name = self.config['dag_name']
+
+		#Date of execution
 		self.date = datetime.now().strftime("%m-%d-%Y--%H.%M.%S")
+
+		#Package import information
 		self.import_dict = {}
-		self.layerbag = []
-		self.layertags = []
 		self.import_check = set()
+		self.imports = ''''''
+
+		#Dag operator information
+		#Including operator families
 		self.tasks = set()
-		self.models = {}
-		self.op_families = ''''''
 		self.operators = ''''''
+		self.op_families = ''''''
+		
+		#Dag layers information
+		self.layerbag = []
+		self.layer_tags = []
 		self.layers = ''''''
 		self.structure = ''''''
-		self.execution_hierarchy_config = os.path.abspath(os.path.join(__file__, '../../config/dag_hierarchy.cfg'))
+		
+		#Dag models information (for informing evaluation)
+		self.models = {}
+		
+		
+		# Output dag information
+		self.output_dag = None
+		with open(
+				os.path.abspath(
+					os.path.join(__file__, '../../config/dag_template.txt')), 'r') as template:
+			self.output_dag = template.read()
+
+		#Default configuration hierarchy (config driven)
+		self.execution_hierarchy_config_path = os.path.abspath(
+											os.path.join(__file__, 
+												'../../config/dag_hierarchy.cfg'))
+
+		#Update execution hierarchy with hierarchy at provided filepath above
+		self.execution_hierarchy = None
+		with open(self.execution_hierarchy_config_path) as exec_config:
+			self.execution_hierarchy = json.load(exec_config)
+		
+
+		#Dag argument defaults
 		self.dag_args = {
 						    'owner': 'airflow',
 						    'depends_on_past': False,
@@ -76,25 +113,27 @@ class DagGenerator():
 						    # 'priority_weight': 10,
 						    # 'end_date': datetime(2016, 1, 1),
 						}
-		#Update parameters that are not provided
+
+		#Update parameters of self.dag_args that are provided by user
 		for key in self.config['dag']:
 			self.dag_args[key] = self.config['dag'][key]
 
+		#Convert dag arguments dictionary to a string
 		self.dag_args = json.dumps(self.dag_args, indent = 4)\
 							.replace('false', 'False')\
-							.replace('true','True')
+							.replace('true','True')\
+							.replace('null', 'None')
 
-		with open(
-				os.path.abspath(
-					os.path.join(__file__, '../../config/dag_template.txt')), 'r') as template:
-			self.output_dag = template.read()
-
-		self.execution_hierarchy = None
-		with open(self.execution_hierarchy_config) as exec_config:
-			self.execution_hierarchy = json.load(exec_config)
-		self.imports = ""
 
 	def is_callable(self, obj):
+		'''
+		Determines whether or not obj is a
+		Python callable.
+
+		Args:
+			obj:			Potential Python object
+
+		'''
 		return any([inspect.isfunction(obj),
 				   inspect.ismethod(obj), 
 				   inspect.ismodule(obj),
@@ -102,7 +141,14 @@ class DagGenerator():
 
 
 	def __rec_dag_config(self, config_section):
+		'''
+		Recursively locks in order of input configuration 
+		such that the order of the tasks is maintained
 
+		Args:
+			config_section:			Section or sub-section of configuration
+
+		'''
 		if isinstance(config_section, dict):
 			for key in config_section:
 				if isinstance(config_section[key], dict):
@@ -110,80 +156,176 @@ class DagGenerator():
 					self.__rec_dag_config(config_section[key])
 
 	def parse_dag_config(self):
+		'''
+		Orchestration run for parsing the dag configuration
+
+		Sub_Function:
+			__rec_dag_config:		Rescursive DAG configuration order locking
+
+		'''
 
 		self.__rec_dag_config(self.dag_config)
 
+	def determine_layer_lineage(self):
+		'''
+		Orchestration for determining layer lineage.
+		For each concept layer provided in the configuration,
+		initialize a spot in a list.
 
-	def __block_lineage(self, subsection, lineage):
+		Then, recursively populate this list using the __layer_lineage 
+		function. Finally, remove any empty cells and attribute the 
+		resultant artifact to the layerbag.
 
+		'''
+
+		#Initialize list for all conceptual layers in the hierarchy
+		self.layerbag = [[]]*len(self.execution_hierarchy.keys())
+
+		#Determine lineage for all dag layers and populate layerbag
+		self.__layer_lineage(self.dag_config, [])
+
+		#Remove missing cells in the layerbag
+		self.layerbag = [layer for layer in self.layerbag if layer != []]
+
+	def __layer_lineage(self, subsection, lineage):
+		'''
+		Conceptual layer lineage function, recursively executed. 
+		For a given conceptual layer in the dag it determines 
+		which physical DagLayers belong and delineates them
+
+		Args:
+			subsection:				Subsection of configuration to parse
+			lineage:				Lineage of conceptual layer, provided
+
+		'''
+
+		#If the subsection is a DagLayer
+		#Delineate
 		if isinstance(subsection, DagLayer):
-			block_order = self.execution_hierarchy[lineage[0]]
+			layer_order = self.execution_hierarchy[lineage[0]]
 			subsection.delineate(lineage, 
-								order = block_order, subrank = None,
+								order = layer_order, subrank = None,
 								dag = self)
 
-			self.layerbag[block_order] = self.layerbag[block_order] + [subsection]
+			#Add new physical artifact to conceptual layer
+			self.layerbag[layer_order] = self.layerbag[layer_order] + [subsection]
 
+		#If the subsection is a list or set of length one
+		#Delineate and remove list data structure
 		elif ((isinstance(subsection, set) or
 		     isinstance(subsection,list)) and 
 			len(subsection) == 1):
+
+			#Pluck item from list
 			subsection = subsection[0]
-			block_order = self.execution_hierarchy[lineage[0]]
+
+			#Delineate
+			layer_order = self.execution_hierarchy[lineage[0]]
 			subsection.delineate(lineage, 
-								order = block_order, subrank = None,
+								order = layer_order, subrank = None,
 								dag = self)
 
-			self.layerbag[block_order] = self.layerbag[block_order] + [subsection]
+			#Add new physical artifact to conceptual layer
+			self.layerbag[layer_order] = self.layerbag[layer_order] + [subsection]
 
+		#If subsection is a list or set with length longer
+		# Than one, Delineate and add subrank order
 		elif (isinstance(subsection, set) or
 			 isinstance(subsection, list)):
+
+			#Keeping running tally of subrank order
 			order = 0
 			sublayer = []
+
+			#Iterate through data store
 			for item in subsection:
 				if isinstance(item, DagLayer):
-					block_order = self.execution_hierarchy[lineage[0]]
+
+					#Delineate
+					layer_order = self.execution_hierarchy[lineage[0]]
 					item.delineate(lineage, 
-									order = block_order, subrank = order, 
+									order = layer_order, subrank = order, 
 									dag = self)
 					sublayer.append(item)
 					order += 1
-			self.layerbag[block_order] = self.layerbag[block_order] + [sublayer]
-				
+
+			#Add new physical artifact to conceptual layer
+			self.layerbag[layer_order] = self.layerbag[layer_order] + [sublayer]
+		
+		#If it is a dictionary, recurse on itself and track lineage
 		elif (isinstance(subsection,dict)):
 				for key in subsection:
-					self.__block_lineage(subsection[key], lineage + [key])
+					self.__layer_lineage(subsection[key], lineage + [key])
+
+	def flatten_layers(self):
+		'''
+		Function to orchestrate the flattening of the nested
+		Dag Layer configuration.
+
+		Sub_Function:
+			__flatten_layers:			Recursively flatter layer configuration
+			
+		'''
+		self.layerbag = self.__flatten_layers(self.layerbag, [])
 
 	def __flatten_layers(self, l, sublist):
+		'''
+		Recursively flattens layers into a single layer stack. This will
+		ultimately generate the dag network. 
 
+		Args:
+			l:				Full list of layers
+			sublist:		Nested list, which may have more lists or layers
+
+		Raises:
+			ValueError:		If two layers have the same tag
+
+		Returns:
+			sublist:		sublist of items found in nested lists
+
+		'''
+
+		#Iterate through list 
 		for item in l:
+
+			#If you find a sublist, recurse on it
 			if isinstance(item, list):
 				self.__flatten_layers(item, sublist)
+
 			else:
-				if item in self.layertags:
+				#Add all of the items, assuming they are not duplicated
+				if item in self.layer_tags:
 					raise ValueError('''Two DagLayers have the same unique tag. 
 									Please check your inputs.''')
 				
-				self.layertags.append(item.tag)
+				#Add term to layer tags, and to sublist
+				self.layer_tags.append(item.tag)
 				sublist.append(item)
 
 		return sublist
     
-	def flatten_layers(self):
-	    self.layerbag = self.__flatten_layers(self.layerbag, [])
-
-	def determine_block_lineage(self):
-		self.layerbag = [[]]*len(self.execution_hierarchy.keys())
-		self.__block_lineage(self.dag_config, [])
-		self.layerbag = [block for block in self.layerbag if block != []]
 
 
 	def parse_layers(self):
+		'''
+		Parse all layers in the DAG's 
+		layerbag. This is a HUGE operation for
+		the layers and assembles all code in the 
+		Daglayer in the correct format
+
+		'''
 		for layer in self.layerbag:
 			layer.parse_layer()
 
 
 	def write_layers(self):
+		'''
+		Writes the logic for all layers in the
+		dag to the dag itself. This is one of the final
+		steps before the final output file for the 
+		airflow dag is generated.
 
+		'''
 		for layer in self.layerbag:
 
 			#Write everything related to layer
@@ -191,94 +333,168 @@ class DagGenerator():
 			layer.write_op_families()
 			layer.write_sublayers()
 
-		layertag_string = pprint.pformat(self.layertags)\
+
+		## TODO: THIS WILL NEED TO BE CHANGED
+		#Connect all layers for dag as a string
+		layertag_string = pprint.pformat(self.layer_tags)\
 							.replace("[", "")\
 							.replace("]", "")\
 							.replace("'", "")\
 							.replace("\n", "\n" + "\t"*2)
 
-		self.structure += "chain({})".format(layertag_string)
+		
+		#Write final layer associations
+		#self.structure += "chain({})".format(layertag_string)
+
+	def detect_external_imports(self):
+		'''
+		Orchestration function for detecting all of 
+		the potential callables in the import configuration.
+		
+		Sub_Function:
+			__rec_imports:				Recursively import all callables
+
+		'''
+
+		#Iterate through all of the conceptual layers
+		#Of the dag config
+		for key in self.dag_config:
+
+			#If the value is a dictionary
+			if isinstance(self.dag_config[key], dict):
+				self.__rec_imports(self.dag_config[key])
+
+			#If the item is a list (should NOT be a set)
+			# Sets do not have order
+			if isinstance(self.dag_config[key], list):
+				for item in self.dag_config[key]:
+					self.__rec_imports(item)
+
+			#If the item is a DagLayer Object
+			if isinstance(self.dag_config[key], DagLayer):
+				self.__rec_imports(self.dag_config[key].config)
+
 
 	def import_dynamically(self, obj):
+		'''
+		Function that generates the string necessary to
+		ensure that all functions will be imported correctly in the 
+		final output python file that is sent to airflow.
+
+		Args:
+			obj:				Potential object to be imported
+		'''
 		import_statement = None
 		module = None
+
 		try:
+			#If we do not already have the import
 			if obj not in self.import_check:
 				import_statement = "from {} import {}\n".format(
 				                                              obj.__module__,
 				                                              obj.__name__)
 				module = obj.__module__
+
+				#Add item to the import check
 				self.import_check.add(obj)
+
+				#Add item to the import dictionary and categorize by module
 				self.import_dict.setdefault(module, []).append(import_statement)
 
 		except Exception as e:
 
 			print("Dynamic import failed. Trying simpler import.")
 			module = "Abnormal Imports"
+
+			#Simpler import statement
 			import_statement = 'import {}\n'.format(obj.__name__)
+
+			#Add item to the import check
+			self.import_dict.setdefault(module, []).append(import_statement)
+
+			#Add item to the import check
+			self.import_check.add(obj)
 
 	def __rec_imports(self,
 					  config_section):
+		'''
+		Recursive function that traverses through a configuration
+		dictionary, previously validated by the owning dag layer,
+		and generated import statements for all non-primitive objects 
+		it finds. This is crucial for the final script to compile.
+
+		Args:
+			config_section:					Section or subsection of DAG configuration
+
+		'''
+
 	    
 		try:
+
+			#If the section is a Dag layer, switch to its config file
 			if isinstance(config_section, DagLayer):
 				config_section = config_section.config
 
+			#Iterate through the config section
 			for key in config_section:
 
-				if (isinstance(key, set)
-					  or isinstance(key, list)):
+				#If the file is a set or list
+				# Recursively import on the items
+				if (isinstance(key, set) or
+					isinstance(key, list)):
 					for item in key:
 						self.__rec_imports(item)
 
+				#If the key is a DagLayer
+				#Recurse on the DagLayer
 				elif isinstance(key, DagLayer):
 					self.__rec_imports(key)
 
-				elif (self.is_callable(key) 
-					and not isinstance(key, DagLayer)):
+				#If the key is callable
+				#Import it dynamically
+				elif (self.is_callable(key) and not 
+					  isinstance(key, DagLayer)):
 
 					self.import_dynamically(key)
 				
+				#If the configuration is a dictionary
 				if (not isinstance(config_section, DagLayer) and
 					isinstance(config_section, dict)):
 
+					#If the value is not a dag layer and is callable
+					#Import it dynamically
 					if (not isinstance(config_section[key], DagLayer) and
 						self.is_callable(config_section[key])):
 
 						self.import_dynamically(config_section[key])
 
 
-					#Check if value is a new dictionary, set, or daglayer
-					#This will fail a ton. That is ok. It needs to check everything
+					# If not, then recursively try to import the value
 					else:
 						self.__rec_imports(config_section[key])
 	    
 		#Will run into errors because checks everything
-		#TODO: Make this system more intelligent
+		#This should not be an issue, but could be more efficient
 		except Exception as e:
 			#print(str(e))
 			pass
 	            
 
-	def detect_external_imports(self):
-		import_check = set()
-		for key in self.dag_config:
-
-			if isinstance(self.dag_config[key], dict):
-				self.__rec_imports(self.dag_config[key])
-
-			if isinstance(self.dag_config[key], list):
-				for item in self.dag_config[key]:
-					self.__rec_imports(item)
-
-			if isinstance(self.dag_config[key], DagLayer):
-				self.__rec_imports(self.dag_config[key].config)
-
+	
 	def write_imports(self):
+		'''
+		Write all of the imports found programmatically in the
+		configuration or that were used in the generation of
+		the layer and operator functionality.
+
+		'''
+
+		#Partition the imports section
 		self.imports += '''##############################################################################
 # External Package Imports Automagically Detected
 ##############################################################################\n'''
-		    
+		
+		#Iterate through the items of the import dictionary
 		for key in self.import_dict:
 			self.imports += "\n## Import statements for {}\n".format(key.upper())
 			self.imports += "".join([item for item in self.import_dict[key] if item != ""])
@@ -286,21 +502,38 @@ class DagGenerator():
 
 
 	def generate_file(self):
+		'''
+		Orchestration function for the entire dag. This method calls all of the necessary
+		auxiliary methods for created the DAG experiment as a Python file.
 
+		'''
+
+		#Parse the user-provided dag configuration
 		self.parse_dag_config()
-		self.detect_external_imports()
-		self.determine_block_lineage()
-		self.flatten_layers()
-		self.parse_layers()
-		self.write_layers()
-		self.write_imports()
-		# pprint.pprint(self.import_dict)
-		# sys.exit(1)
 
+		#Detect external imports
+		self.detect_external_imports()
+
+		#Determine lineage for each layer
+		#And flatten into single sequence
+		self.determine_layer_lineage()
+		self.flatten_layers()
+
+		#Parse all layers in the dag
+		self.parse_layers()
+
+		#Write all layer information to dag output
+		self.write_layers()
+
+		#Write all imports to dag output
+		self.write_imports()
+
+		#Debugging statement. Can be commented out or removed
 		for item in self.layerbag:
 			if isinstance(item, DagLayer):
 				print(item.exec_order,item.lineage, item.tag)
 
+		#Create output dag string
 		self.output_dag = self.output_dag.format(self.dag_name,
 												 self.author,
 												 self.date,
@@ -312,9 +545,12 @@ class DagGenerator():
 												 self.layers,
 												 self.structure)
 
+		#Generate the dag filename
 		self.dag_filename = "_".join([self.dag_name.replace(" ","-"), 
 									  self.author.replace(" ","-"), 
 									  self.date]) + ".py"
+		
+		# Write the dag configuration
 		# with open(self.dag_filename, 'w') as file:
 		# 	file.write(self.output_dag)
 		# 	file.close()
