@@ -60,6 +60,7 @@ class DagLayer:
 		
 		#Collection of operator families
 		self.op_families = {}
+		self.family_ids = set()
 
 		#List of IDs needed to merge operators
 		#TODO: Replace with op_family and sublayer logic
@@ -68,10 +69,6 @@ class DagLayer:
 		#Operator router (defined in function below)
 		#TODO: Find a better place for it
 		self.op_router = None
-
-		#Store of all task families
-		#TODO: Figure out if still needed
-		self.tasks = {}
 
 		#Storage of all operators in layer
 		self.operators = {}
@@ -150,6 +147,7 @@ class DagLayer:
 		a parent, lineage, order of execution, and subrank.
 
 		This is useful for defining the dag later
+
 		'''
 
 		#Full lineage and layer parent concept
@@ -168,17 +166,45 @@ class DagLayer:
 		self.dag = dag 
 
 
-	def create_task_id(self, tag_info):
+	def __create_task_id(self, tag_info):
+		'''
+		Generate a task ID for each operator in DAG
+		This takes a list of inputs and concatenates them
+
+		Args:
+			tag_info: 				List of tag information
+
+		Returns:
+			task_id:				Unique Task ID name
+		'''
+
+		#Join tag data
 		task_id = "_".join(tag_info)
 		
+		#Raise an error if this task is already 
+		#defined in the dag
 		if task_id in self.dag.tasks:
 			raise AttributeError("Task with the same name has already been created. Check your inputs")
 		
+		#Add the task ID to the dag
 		self.dag.tasks.add(task_id)
 
+		#Return the task_id
 		return task_id
 
 	def __register_model(self, family, model):
+		'''
+		EXPERIMENTAL: May be a good way to 
+		generate all of the tasks for evaluation of 
+		Machine Learning models
+
+		Args:
+			family:					Model family
+			model:					Model object
+	
+		Returns:
+			model:					Model object, unchanged
+		'''
 		if self.dag.is_callable(model):
 			self.dag.models[family] = False 
 
@@ -191,104 +217,146 @@ class DagLayer:
 						op, 
 						params,
 						inherits = False):
+		'''
+		One of the most import functions for the layer. This
+		process takes general configuration input and
+		re-organizes it based on the parent concept that the
+		layer belongs to. It accommodates dynamic parameter
+		switching to take input from upstream tasks, generates
+		the appropriate task tags, and also accommodates 
+		holistic, triggered parsing options.
 
+		Args:
+			parent:							Parent concept. Usually self.parent, but can be replaced by holistic parsing.
+			family:							Task family. Logical chain of tasks acting on a specific target.
+			family_upstream_task:			Upstream task id from same family that may be used to replace params.
+			op:								Operator function acting on the specified data (delineated by family). 
+											This will be wrapped in a shell function
+			params:							Parameters to provide for specific function.
+
+		Kwargs:
+			inherits:						Default = False. Determines if task will inherit upstream params.
+
+		Returns:
+			op_detail_list:					List of operators (tasks) and their details for execution
+
+		'''
 		#Holistic or custom operators may come in as strings
 		op_name = op.__name__ if self.dag.is_callable(op) else op
 
 		#Operator router
 		#TODO: Find a better place to put this
-		
 		self.op_router = \
 			{'splitting': 
 							{'operator': split_operation, 
 							'args': {'func': op,
 									'params': params},
-							 'tag': [self.tag, family, op_name]},
+							 'task_tag': [self.tag, family, op_name]},
              'data_sources': 
              				{'operator':read_data_operation, 
              				'args': {'func': op, 
              						'params': params,
              						'filepath': family},
-             				'tag': [self.tag, family, op_name]},
+             				'task_tag': [self.tag, family, op_name]},
              'preprocessing': 
              				{'operator':bulk_data_operation, 
              				'args': {'func': op,
              						'params': params},
-             				'tag':[self.tag, family, op_name]},
+             				'task_tag':[self.tag, family, op_name]},
              'evaluation': 
              				{'operator':evaluation_operation, 
              				'args': {'func': op,
              						 'params': params,
-             						 #Figure out model id 
+             						 #Figure out model id generation for eval tasks
              						 'model_id': None},
-             				'tag': [self.tag, family]},
+             				'task_tag': [self.tag, family]},
+             # Will wait to do any EDA design patterns
              # 'eda': 
              # 				{'operator':bulk_data_operation, 
              # 				'args': {'func'},
-             # 				'tag':[]},
+             # 				'task_tag':[]},
+
              'modeling': 
              				{'operator':[('fit',fit_operation), 
              							 ('predict',predict_operation)], 
-             				
+
+             				#Registers model for evaluation functions later
              				'args': {'model': self.__register_model(family, op), 
              						'params': params},
              				'arg_xcom_update': ['model'],
-             				'tag':[self.tag, family]},
+             				'task_tag':[self.tag, family]},
 
              'feature_engineering': 
+             				#Airflows op_converter needs to be determined
              				{'operator': col_data_operation, 
              				'args': {'func': op,
              						 'params': params,
              						 'inherits': inherits,
              						 'column_name': family_upstream_task},
-             				'holistic': {'merge_layer': 
-             								{'merge_cols': 
+             				'holistic': {'merge_layer': #Parent
+             								{'merge_cols': #Family
              									{'merge_key': self.tag}}},
+             				'task_tag': [self.tag, family, op_name]},
 
-             				#Extra underscores so we can isolate the column
-             				# names later.
-             				'tag': [self.tag, family, op_name]},
-
+             #HOLISTIC LAYER OPERATIONS START HERE
              'merge_layer': 
              				{'operator': merge_data_operation, 
              				'args': {'params': params,
              				'merge_ids': self.merge_ids},
-             				'tag': [self.tag, 'merge_layer']}
+             				'task_tag': [self.tag, 'merge_layer']}
 		}
 
-		#Must be converted to a list
+		#Must be converted to a list to be added to operator list later
 		python_callables = self.op_router[parent]['operator']
 		if isinstance(python_callables, list):
 			python_callables = python_callables
 		else:
 			python_callables = [python_callables]
 
+		#Initialize the final_operator, upstream task id, and detail list
 		op_detail_list = []
 		upstream_task_id = None
 		final_operator = None
 
+		#Iterate through shell python callables
 		for p_callable in python_callables:
 
-			task_id = copy.deepcopy(self.op_router[parent]['tag'])
+			#Copy the initial task tag
+			task_id = copy.deepcopy(self.op_router[parent]['task_tag'])
 
+			#If there are upstream tasks that will update xcom arguments
+			#Replace the existing arguments with correct values
+			#TODO: Put in its own function
 			if upstream_task_id is not None:
 				for update in self.op_router[parent]['arg_xcom_update']:
 					params[update] = upstream_task_id
 
+			#If there are is more than one callable in router queue
+			#Update the task IDs to ensure that there is not duplication
 			if len(python_callables) > 1:
 				task_id.append(p_callable[0])
 				final_operator = p_callable[1]
 			else:
 				final_operator = p_callable
 
-			task_id = self.create_task_id(task_id)
+			#Generate the task id for the task
+			#And verify it is not a duplicate
+			task_id = self.__create_task_id(task_id)
+
+			#Isolate parameters that have been updated with
+			#The operator router
 			params = self.op_router[parent]['args']
 			
+			#Dictionary with all task details added to
+			#Operator detail dictionary
 			op_detail_list.append({'task_id': task_id,
 									   'python_callable': final_operator,
 									   'params': self.__parse_parameters(params)})
+			
+			#Update the upstream task_id (for later inheritance)
 			upstream_task_id = task_id
 
+		#Return op_detail_list
 		return op_detail_list
 
 	def __parse_param_callables(self, params, obj_dict):
@@ -386,7 +454,7 @@ class DagLayer:
 			family_upstream_task = op_detail_list[-1]['task_id']
 
 		family_id = "_".join([self.tag, family])
-		if family_id in self.tasks:
+		if family_id in self.family_ids:
 			raise ValueError("A Task Family with the same ID has already been created.\n\
 							 Please check your inputs.")
 		if not holistic:
@@ -397,7 +465,9 @@ class DagLayer:
 		if family in self.merge_ids:
 			raise AttributeError("Family {} already represented in merge\
 			registry. Please check your inputs.".format(family))
+
 		self.merge_ids[family] = family_upstream_task
+		self.family_ids.add(family_id)
 
 	def write_ops(self):
 		self.dag.operators += \
