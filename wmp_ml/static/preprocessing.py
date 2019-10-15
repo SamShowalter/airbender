@@ -1,7 +1,7 @@
 #####################################################################################
 #
 #
-# 	Missing Data Preprocessing for Airflow
+# 	Preprocessing for WMP ML Airflow
 #  
 #	Author: Sam Showalter
 #	Date: October 3, 2018
@@ -13,19 +13,34 @@
 # External Library and Module Imports
 #####################################################################################
 
+import pandas as pd 
+import numpy as np 
+from scipy.stats.mstats import winsorize
 
 #####################################################################################
 # Class and Constructor
 #####################################################################################
 
+def wmp_impute(data, method = "median"):
 
-def find_missing_data(self, data):
-	nulls = data.isnull().sum()
-	null_cols = nulls[nulls>0].index.tolist()
-	return null_cols
+	column_names = data._get_numeric_data().columns 
+	nulls = data[data.isnull().sum()]
+	null_names = nulls[nulls > 0].index.tolist()
 
-def dynamic_impute(self, data, method = 'median'):
-	return
+	for name in null_names:
+		if method == "median":
+			data[name] = data[name].fillna(data[name].median(), inplace = True)
 
-def fixed_impute(self, data, value = 0):
-	return
+	return data
+
+def wmp_winsorize(data, col_names, limits = [0.05, 0.05]):
+    for column in col_names:
+        data[column] = winsorize(data[column], limits = limits)
+    
+    return data
+
+
+
+
+
+

@@ -1,7 +1,7 @@
 #####################################################################################
 #
 #
-# 	Airflow DAG Generated Experiment: {} # Title
+# 	Airflow DAG Generated Experiment: {} 
 #  
 #	Author: {} 
 #	Date: {}
@@ -17,6 +17,10 @@
 import os
 import sys
 
+#Delete this once package matures
+#For now, change to your own path
+sys.path.append("../")
+
 # Airflow DAG
 from airflow import DAG
 
@@ -26,11 +30,13 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.email_operator import EmailOperator
 from airflow.operators.postgres_operator import PostgresOperator
-from airflow.operators.subdag_operator import SubbDagOperator
+from airflow.operators.subdag_operator import SubDagOperator
+
+#Airflow Utils
+from airflow.utils.helpers import *
 
 #Datetime information
 from datetime import datetime, timedelta
-
 
 {}
 
@@ -42,8 +48,9 @@ from datetime import datetime, timedelta
 default_args = {}
 
 dag = DAG( {}, 
-		   default_args=default_args, 
-		   schedule_interval='@Once')
+		   default_args=default_args,
+		   start_date = datetime(2018,1,1), 
+		   schedule_interval='@once')
 
 #####################################################################################
 # Operators Construction
@@ -52,7 +59,19 @@ dag = DAG( {},
 {}
 
 #####################################################################################
-# Operator Association
+# Operator Family Construction
+#####################################################################################
+
+{}
+
+#####################################################################################
+# Layers Construction
+#####################################################################################
+
+{}
+
+#####################################################################################
+# Layers Association and Structure
 #####################################################################################
 
 {}

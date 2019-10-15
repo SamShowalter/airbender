@@ -18,25 +18,44 @@
 # Class and Constructor
 #####################################################################################
 
-def normalize_values(data, column_names, transformer, tag = 'Standard_Scaler_'):
-    normalized_df = transformer.fit_transform(data.loc[:,
-                                                            column_names])
+def normalize_values(data, transformer, tag = 'Standard_Scaler_'):
+    columns = data.columns
+    if data.shape[0] == 1:
+        data = data.values.reshape(-1,1)
+    else:
+        data = data.values
+
+    normalized_df = transformer().fit_transform(data)
     
     if tag == None:
     	tag = ""
     
-    normalized = pd.DataFrame(normalized_df, columns = [tag + col for col in column_names])
+    normalized = pd.DataFrame(normalized_df)
+    normalized.columns = [tag + col for col in columns]
 
     return normalized
 
-def convert_boolean_df(data, boolean_name, boolean_names_and_values):
-    for name_value in boolean_names_and_values:
-        data[name_value[0] + "_bool"] = data[name_value[0]].replace({name_value[1]: 1,
-                                                       name_value[2]: 0}, inplace = False)
+def convert_boolean_df(data, boolean_names_and_values, tag = "_bool"):
 
-def create_ordinal_df(data, ordinal_name, ordinal_dict, tag = "ord"):
+    if data.shape[1]> 1:
+        raise ValueError("Input data has more than one column")
+
+    if tag != None:
+        tag = "_" + tag
+    else:
+        tag = ""
+
+    yes = boolean_names_and_values[data.name][0]
+    no = column_names_and_values[data.name][0]
+
+    data[column_name + tag] = data[column_name]\
+                                        .replace({yes: 1,
+                                                  no: 0}, 
+                                                  inplace = False)
+
+def create_ordinal_df(data, ordinal_dict, tag = "ord"):
     
-    ordinal_df = data.loc[:,ordinal_names]
+    ordinal_df = data
         
     if tag != None:
     	tag = "_" + tag
@@ -44,9 +63,9 @@ def create_ordinal_df(data, ordinal_name, ordinal_dict, tag = "ord"):
     	tag = ""
 
     #Make new ordinal column (suffix = "ord") by replacing values with ordinal dictionary
-    ordinal_df[name + tag] = ordinal_df[name].replace(ordinal_dict, inplace = False)
+    ordinal_df[data.name + tag] = ordinal_df[data.name].replace(ordinal_dict, inplace = False)
 
     if tag != None:
-    	ordinal_df.drop(name, inplace = True, axis = 1)
+    	ordinal_df.drop(data.name, inplace = True, axis = 1)
     
     return ordinal_df

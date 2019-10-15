@@ -1,6 +1,31 @@
+#####################################################################################
+#
+#
+#   Basic EDA for WMP_ML Airflow DAG
+#  
+#   Author: Sam Showalter
+#   Date: October 6, 2018
+#
+#####################################################################################
+
+
+#####################################################################################
+# External Library and Module Imports
+#####################################################################################
+
+
+#####################################################################################
+# Class and Constructor
+#####################################################################################
+
+
+
 #Provided function for detecting outliers
-def detect_outliers(col_names, data, std_thresh = 6):
+def detect_outliers(data, std_thresh = 6):
     
+    col_names = data._get_numeric_data().columns
+    outlier_cols = [] 
+
     for column in col_names:
         
         #Create z_score proxy for each column
@@ -17,11 +42,9 @@ def detect_outliers(col_names, data, std_thresh = 6):
         else:
             print("\n {} outlier(s) found for column {} at threshold of {} stdevs. See below".format(outliers.shape[0],
                                                                                         column, std_thresh))
-            print("\n")
-            print(outliers)
-            print("\n")
+            outlier_cols.append(columns)
         
         #Drop z_score from data
         data.drop('z_score', axis = 1, inplace = True)
 
-    return data
+    return outlier_cols
