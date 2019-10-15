@@ -38,7 +38,10 @@ from wmp_ml.dag.layers import DagLayer
 #####################################################################################
 
 class DagGenerator():
-
+	'''
+	Dag generator orchestration object. This object will take a specific configuration
+	and generate an airflow ML experiment for you.
+	'''
 	def __init__(self, config):
 		self.config = config
 		self.dag_config = config['config']
@@ -312,6 +315,6 @@ class DagGenerator():
 		self.dag_filename = "_".join([self.dag_name.replace(" ","-"), 
 									  self.author.replace(" ","-"), 
 									  self.date]) + ".py"
-		with open(self.dag_filename, 'w') as file:
-			file.write(self.output_dag)
-			file.close()
+		# with open(self.dag_filename, 'w') as file:
+		# 	file.write(self.output_dag)
+		# 	file.close()
