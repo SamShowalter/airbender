@@ -51,8 +51,14 @@ def merge_data_operation(merge_ids, dag, **kwargs):
 
 	ti.xcom_push(key = 'data', value = data)
 
-def bulk_data_operation(func, params, dag, **kwargs):
+def bulk_data_operation(func, params, inherits, dag, **kwargs):
 	ti = kwargs['ti']
+
+	data = None
+	if not inherits:
+		data = ti.xcom_pull(key = 'data')
+	else:
+		data = ti.xcom_pull(task_id = column_data_id) 
 
 	data = ti.xcom_pull(key = 'data')
 	data = func(data, **params)
@@ -72,14 +78,21 @@ def col_data_operation(func, column_data_id, inherits, params, dag, **kwargs):
 
 	return func(data, **params)
 
+def _is_fitted(model):
+    """Checks if model object has any attributes ending with an underscore"""
+    return 0 < len( [k for k,v in inspect.getmembers(model) 
+    				if k.endswith('_') 
+    				and not k.startswith('__')] )
+
 def fit_operation(model, params, dag, **kwargs):
-	ti = kwargs['ti']
+	if not _is_fitted(model):
+		ti = kwargs['ti']
 
-	X_train = ti.xcom_pull(key = "X_train")
-	y_train = ti.xcom_pull(key = "y_train")
+		X_train = ti.xcom_pull(key = "X_train")
+		y_train = ti.xcom_pull(key = "y_train")
 
-	model = model(**params)
-	model.fit(X_train, y_train)
+		model = model(**params)
+		model.fit(X_train, y_train)
 
 	return model
 

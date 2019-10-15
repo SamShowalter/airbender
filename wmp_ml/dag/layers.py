@@ -36,6 +36,10 @@ from wmp_ml.airflow.op_converter import *
 #####################################################################################
 
 class DagLayer:
+	'''
+	Layer object for generating the ML DAG. Contains sublayers, op_families, and operators
+
+	'''
 
 	def __init__(self, layer_config):
 
@@ -120,6 +124,9 @@ class DagLayer:
 		Generates the tag for the entire 
 		DagLayer. This is an name derived 
 		from the lineage of the DagLayer
+		
+		Kwargs:
+			rank:				Subrank of dag layer owned by a specific concept
 
 		'''
 
@@ -148,6 +155,12 @@ class DagLayer:
 
 		This is useful for defining the dag later
 
+		Args:
+			lineage:			Lineage of concepts that lead to DAG in configuration
+			order:				Running order of DagLayer, provided by configuration
+			subrank:			Subrank of DagLayers owned by the same concept
+			dag:				Owning DagGenerator object
+
 		'''
 
 		#Full lineage and layer parent concept
@@ -160,7 +173,7 @@ class DagLayer:
 		#Define execution order
 		self.exec_order = order
 		if subrank is not None:
-			self.exec_order += subrank
+			self.exec_order += (subrank/10.0)
 
 		#Attribute the parent DAG
 		self.dag = dag 
@@ -205,12 +218,15 @@ class DagLayer:
 		Returns:
 			model:					Model object, unchanged
 		'''
+
+		#Set model to false until it has been evaluated
 		if self.dag.is_callable(model):
 			self.dag.models[family] = False 
 
+		#Return model object, unchanged
 		return model
 
-	def prime_operator(self, 
+	def __prime_operator(self, 
 						parent, 
 						family, 
 						family_upstream_task,
@@ -236,6 +252,10 @@ class DagLayer:
 
 		Kwargs:
 			inherits:						Default = False. Determines if task will inherit upstream params.
+
+		Sub_Functions:
+			__create_task_id:				Generate and validate task id for an operator
+			__parse_parameters:				Parse operator parameters
 
 		Returns:
 			op_detail_list:					List of operators (tasks) and their details for execution
@@ -306,7 +326,7 @@ class DagLayer:
              				'task_tag': [self.tag, 'merge_layer']}
 		}
 
-		#Must be converted to a list to be added to operator list later
+		#Must be converted to a list to be iterated on later
 		python_callables = self.op_router[parent]['operator']
 		if isinstance(python_callables, list):
 			python_callables = python_callables
@@ -360,7 +380,20 @@ class DagLayer:
 		return op_detail_list
 
 	def __parse_param_callables(self, params, obj_dict):
+		'''
+		Recursive function to parse parameters for callable
+		function so that they are writte correctly in the
+		final Python file. It documents any function objects 
+		and their string format. It then replaces their format
+		after the entire configuration is converted to string format.
+		This ensures that the functions are represented as functions in
+		the final file.
 
+		Args:
+			params:						Sub-dict of parameters, including numbers, strings, and callables
+			obj_dict:					Reference object dictionary with string and correct object formats
+
+		'''
 		if isinstance(params, dict):
 
 			for k,v in params.items():
@@ -374,19 +407,58 @@ class DagLayer:
 
 
 	def __parse_parameters(self, params):
-	    params_str = pprint.pformat(params).replace("\n", "\n" + "\t"*7)
-	    obj_dict = {}
-	    self.__parse_param_callables(params, obj_dict)
-	    
-	    for key in obj_dict:
-	        params_str = params_str.replace(key, obj_dict[key].__name__)
-	    
-	    return params_str
+		'''
+		Parent function for parsing parameters. Recursively dives into dictionaries and sub_dictionaries
+		in the configuration. It then detects callables, documents them, and replaces them with their
+		correct format so they are deemed functions when written as a final DAG.
 
-	def __add_python_operator(self, task_id,
-									python_callable, 
-									params):
+		Args:
+			params:								Full parameter set for a specific operator
 
+		Child_Functions:
+			__parse_param_callables:			Updates the provided slice of configuration with correct format
+
+		Returns:
+			params_str:							String version of all parameters
+
+		'''
+
+		#Initial creation of the final parameter string.
+		#Includes formatting changes
+		params_str = pprint.pformat(params).replace("\n", "\n" + "\t"*7)
+
+		#Object dictionary
+		obj_dict = {}
+		self.__parse_param_callables(params, obj_dict)
+
+		#For key in the object dictionary
+		#Replace the function with the correct name
+		for key in obj_dict:
+		    params_str = params_str.replace(key, obj_dict[key].__name__)
+
+		#Return final parameter string
+		return params_str
+
+
+	def __generate_python_operator(self, 
+								task_id,
+								python_callable, 
+								params):
+		'''
+		Write a python operator to the owning DAG. This is a direct connection to
+		the final Python file that will be submitted to airflow.
+
+		Args:
+			task_id:						Task identifier for operator
+			python_callable:				Shell callable for Python function
+			params:							Params for shell callable, including the true callable
+
+		Sub_Functions:
+			import_dynamically:				Dynamically imports functionality needed for script
+
+		'''
+
+		#Template for python operator
 		template = '''PythonOperator( 
 							task_id='{}',
 							provide_context=True,
@@ -395,10 +467,14 @@ class DagLayer:
 							dag = dag)\n
 					'''
 
+		#Import callables as strings into final Python file
 		self.dag.import_dynamically(python_callable)
 
 		#Replaces the variable name to be shorter, but there should be no overlap
+		#There would likely never be a case of a name thats the same, with different lineages
 		shortened_id = task_id.replace(self.tag + "_", "")
+
+		#Add operator to operators list as a string.
 		self.operators[shortened_id] =  "\n" + shortened_id +\
 										 " = " + \
 										template.format(task_id,
@@ -410,8 +486,27 @@ class DagLayer:
 							family_set, 
 							operator_dict,
 							holistic = False):
+		"""
+		Function that parses tuple tasks. It iterate through the tuple key
+		(family_set) and parses each as its own string task.
 
+		Args:	
+			parent:						Parent concept. Often layer parent, unless holistic parsing
+			familt_set:					Owning family for task. In this case, a tuple of col names
+			operator_dict:				Dictionary of callables and their parameters
+
+		Kwargs:
+			holistic:					Boolean determining if this is a holistic operation
+		
+		Sub_Functions:
+			__parse_string_task_family	Parses string task family into operators
+
+		"""
+
+		#Iterate through tuple
 		for family in family_set:
+
+			#Parse string task for each member of family
 			self.__parse_string_task_family(parent,
 									family,
 									operator_dict,
@@ -422,7 +517,28 @@ class DagLayer:
 							family, 
 							operator_dict,
 							holistic = False):
+		'''
+		Parses input from the Layer configuration into a family of
+		operations that sequentially act on a target piece of data.
 
+		This is the most atomic function for converting configuration-
+		based functionality into DAG operators.
+
+		Args:	
+			parent:						Parent concept. Often layer parent, unless holistic parsing
+			familt_set:					Owning family for task. In this case, a tuple of col names
+			operator_dict:				Dictionary of callables and their parameters
+
+		Kwargs:
+			holistic:					Boolean determining if this is a holistic operation
+
+		Sub_Functions:
+			__generate_python_operator:	Generates python operator string and stores it
+			__create_family_id:			Create unique ID for specific task family
+
+		'''
+
+		#Initialize parameter, inheritance, family operation, and count vars
 		params = {}
 		count = 0
 		inherits = False
@@ -434,42 +550,90 @@ class DagLayer:
 		#May need to update tasks with their new_family
 		family_upstream_task = family 
 
+		#For operation in operator dictionary (all within one family)
 		for op in operator_dict.keys():
+
+			#Overwrite params var if input is not None
 			if operator_dict[op] != None:
 				params = operator_dict[op]
 
+			#Operation detail list as generated by priming function
+			op_detail_list = self.__prime_operator(parent, 
+													family,
+													family_upstream_task, 
+													op, 
+													params, 
+													inherits)
 
-			op_detail_list = self.prime_operator(parent, family,
-												family_upstream_task, 
-												op, params, inherits)
-
+			#Add operation detail list of family operators 
+			#Could have multiple shell operators for one operation
+			#Therefore, we combine with list addition
 			family_ops += op_detail_list
 
+			#Generate python operators for each operator in family set
 			for op_details in op_detail_list:
-				self.__add_python_operator(**op_details)
+				self.__generate_python_operator(**op_details)
 
 			#After first iteration, all tasks inherit from upstream
 			#Need last item's task id to facilitate inheritance.
 			inherits = True
 			family_upstream_task = op_detail_list[-1]['task_id']
 
-		family_id = "_".join([self.tag, family])
-		if family_id in self.family_ids:
-			raise ValueError("A Task Family with the same ID has already been created.\n\
-							 Please check your inputs.")
+		#Create a family ID
+		family_id = self.__create_family_id(family)
+
+		#Determine which sublayer this family applies to
+		#Then add the task family to the layer
 		if not holistic:
 			self.families.setdefault('core', {})[family_id] = family_ops
 		else:
 			self.families.setdefault(parent, {})[family_id] = family_ops
 
+		#Add family to list of merge_ids in case the operations need to be merged
+		#TODO: Separate out and handle in different way.
 		if family in self.merge_ids:
 			raise AttributeError("Family {} already represented in merge\
 			registry. Please check your inputs.".format(family))
 
 		self.merge_ids[family] = family_upstream_task
+
+	
+	def __create_family_id(self, family):
+		'''
+		Create a family id and then check to ensure that it is not a duplicate
+		from somewhere else.
+
+		Args:
+			family:				String name for specific operation family
+
+		Raises:
+			ValueError:			If task family ID is already taken
+
+		Returns:
+			family_id:			Final, created family_id
+
+		'''
+
+		#Generate family id
+		family_id = "_".join([self.tag, family])
+
+		#Check to ensure that the specific family_id is not taken
+		if family_id in self.family_ids:
+			raise ValueError("A Task Family with the same ID has already been created.\n\
+							 Please check your inputs.")
+
+		#Add family_id to list
 		self.family_ids.add(family_id)
 
-	def write_ops(self):
+		#Return family id
+		return family_id
+
+	def write_operators(self):
+		'''
+
+		'''
+
+		#Add section tag for operators in provided layer
 		self.dag.operators += \
 		'''
 \n###########################################################
@@ -477,6 +641,8 @@ class DagLayer:
 ###########################################################\n'''\
 		.format(self.parent.upper(), self.tag.upper())
 
+		#For each operator string in the list of operators
+		#Add the operator to the parent dag
 		for op_string in self.operators:
 			self.dag.operators += self.operators[op_string]
 

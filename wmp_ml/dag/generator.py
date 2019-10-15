@@ -116,7 +116,7 @@ class DagGenerator():
 		if isinstance(subsection, DagLayer):
 			block_order = self.execution_hierarchy[lineage[0]]
 			subsection.delineate(lineage, 
-								block = block_order, rank = None,
+								order = block_order, subrank = None,
 								dag = self)
 
 			self.layerbag[block_order] = self.layerbag[block_order] + [subsection]
@@ -127,7 +127,7 @@ class DagGenerator():
 			subsection = subsection[0]
 			block_order = self.execution_hierarchy[lineage[0]]
 			subsection.delineate(lineage, 
-								block = block_order, rank = None,
+								order = block_order, subrank = None,
 								dag = self)
 
 			self.layerbag[block_order] = self.layerbag[block_order] + [subsection]
@@ -140,7 +140,7 @@ class DagGenerator():
 				if isinstance(item, DagLayer):
 					block_order = self.execution_hierarchy[lineage[0]]
 					item.delineate(lineage, 
-									block = block_order, rank = order, 
+									order = block_order, subrank = order, 
 									dag = self)
 					sublayer.append(item)
 					order += 1
@@ -184,7 +184,7 @@ class DagGenerator():
 		for layer in self.layerbag:
 
 			#Write everything related to layer
-			layer.write_ops()
+			layer.write_operators()
 			layer.write_op_families()
 			layer.write_sublayers()
 
@@ -296,7 +296,7 @@ class DagGenerator():
 
 		for item in self.layerbag:
 			if isinstance(item, DagLayer):
-				print(item.block,item.lineage, item.tag)
+				print(item.exec_order,item.lineage, item.tag)
 
 		self.output_dag = self.output_dag.format(self.dag_name,
 												 self.author,
