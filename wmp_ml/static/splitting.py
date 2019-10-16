@@ -24,8 +24,12 @@ def auto_train_test_split(data, target, test_ratio, random_state = 42):
 	train = data.loc[:, data.columns != target]
 	test = data.loc[:, target]
 
+	print(train)
+	print(test)
+	print(test_ratio)
+
 	X_train, X_test, y_train, y_test = train_test_split(train, test, 
-														test_ratio, 
+														test_size = test_ratio, 
 														random_state = random_state)
 
 	return X_train, X_test, y_train, y_test

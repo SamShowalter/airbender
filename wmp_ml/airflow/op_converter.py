@@ -17,6 +17,9 @@
 import os
 import sys
 
+#Operator converter
+import pandas as pd
+
 #Time 
 from datetime import datetime, timedelta
 
@@ -29,101 +32,106 @@ import inspect
 #####################################################################################
 
 
-def evaluation_operation(func, model_id, params, dag, **kwargs):
+def evaluation_operation(params, dag, **kwargs):
 
 	ti = kwargs['ti']
 
-	preds = ti.xcom_pull(task_id = model_id)
+	preds = ti.xcom_pull(task_ids = params['model_id'])
 	y_test = ti.xcom_pull(key = 'y_test')
 
-	return func(y_test, preds, **params)
+	return params['func'](y_test, preds, **params['params'])
 
 
-def merge_data_operation(merge_ids, dag, **kwargs):
+def merge_data_operation(params, dag, **kwargs):
 
 	ti = kwargs['ti']
-	data = xcom_pull(key = 'data')
+	data = ti.xcom_pull(key = 'data')
 
+	persist_cols = []
 
-	for column_name, task_id in merge_ids.item():
-		task_data = ti.xcom_pull(task_id = task_id)
-		data[column_name] = task_data
+	for task_id in params['merge_ids']:
+		task_data = ti.xcom_pull(task_ids = task_id)
+
+		if isinstance(task_data, pd.DataFrame):
+			persist_cols += task_data.columns
+			data = pd.concat([data, task_data], axis = 1)
+		elif isinstance(task_data, pd.Series):
+			persist_cols.append(task_data.name)
+			data[task_data.name] = task_data
+
+	#Only persist mentioned
+	data = data.loc[:,persist_cols]
 
 	ti.xcom_push(key = 'data', value = data)
 
-def bulk_data_operation(func, params, inherits, dag, **kwargs):
+def bulk_data_operation(params, dag, **kwargs):
 	ti = kwargs['ti']
 
 	data = None
-	if not inherits:
-		data = ti.xcom_pull(key = 'data')
-	else:
-		data = ti.xcom_pull(task_id = column_data_id) 
 
 	data = ti.xcom_pull(key = 'data')
-	data = func(data, **params)
+	data = params['func'](data, **params['params'])
 
 	ti.xcom_push(key = 'data', value = data)
 
 
-def col_data_operation(func, column_data_id, inherits, params, dag, **kwargs):
+def col_data_operation(params, dag, **kwargs):
 	ti = kwargs['ti']
 	data = None
 
-	if not inherits:
+	if not params['inherits']:
 		data = ti.xcom_pull(key = 'data')
-		data = data.loc[:, column_data_id]
+		data = data.loc[:, params['column_data_id']]
 	else:
-		data = ti.xcom_pull(task_id = column_data_id) 
+		data = ti.xcom_pull(task_ids = params['column_data_id']) 
 
-	return func(data, **params)
 
-def _is_fitted(model):
-    """Checks if model object has any attributes ending with an underscore"""
-    return 0 < len( [k for k,v in inspect.getmembers(model) 
-    				if k.endswith('_') 
-    				and not k.startswith('__')] )
+	res = params['func'](data, **params['params'])
 
-def fit_operation(model, params, dag, **kwargs):
-	if not _is_fitted(model):
+	return res
+
+
+
+def fit_operation(params, dag, **kwargs):
+	if not _is_fitted(params['model']):
 		ti = kwargs['ti']
 
 		X_train = ti.xcom_pull(key = "X_train")
 		y_train = ti.xcom_pull(key = "y_train")
 
-		model = model(**params)
+		model = params['model'](**params['params'])
 		model.fit(X_train, y_train)
 
 	return model
 
-def read_data_operation(func, filepath, params):
+def read_data_operation(params, dag, **kwargs):
 
 	ti = kwargs['ti']
 
-	data = func(filepath, **params)
+	data = params['func'](params['filepath'], **params['params'])
 
 	ti.xcom_push(key = 'data', value = data)
 
 
-def predict_operation(model, params, dag, **kwargs):
+def predict_operation(params, dag, **kwargs):
 	ti = kwargs['ti']
 
 	X_test = ti.xcom_pull(key = "X_test")
 
-	model = ti.xcom_pull(task_id = model)
+	model = ti.xcom_pull(task_ids = params['model'])
 	
-	predictions = model.predict(X_text)
+	predictions = model.predict(X_test)
 
 	return predictions
 
 
-def split_operation(func, params, dag, **kwargs):
+def split_operation(params, dag, **kwargs):
 
 	ti = kwargs['ti']
 
 	data = ti.xcom_pull(key = 'data')
 
-	X_train, X_test, y_train, y_test = func(data, **params)
+	X_train, X_test, y_train, y_test = params['func'](data, **params['params'])
 
 	ti.xcom_push(key = 'X_train', value = X_train)
 	ti.xcom_push(key = 'X_test', value = X_test)
@@ -138,3 +146,8 @@ def void_operation(func, params, dag, **kwargs):
 
 	return func(data, **params)
 
+def _is_fitted(model):
+    """Checks if model object has any attributes ending with an underscore"""
+    return 0 < len( [k for k,v in inspect.getmembers(model) 
+    				if k.endswith('_') 
+    				and not k.startswith('__')] )

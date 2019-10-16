@@ -103,7 +103,7 @@ class DagGenerator():
 						    'email': ['airflow@example.com'],
 						    'email_on_failure': False,
 						    'email_on_retry': False,
-						    'retries': 1,
+						    'retries': 0,
 						    'op_args':{},
 						    'op_kwargs': {},
 						    'params': {}
@@ -152,6 +152,9 @@ class DagGenerator():
 		#Write all layer information to dag output
 		self.write_layers()
 
+		#Connect all of the layers
+		self.connect_layers()
+
 		#Write all imports to dag output
 		self.write_imports()
 
@@ -177,10 +180,14 @@ class DagGenerator():
 									  self.author.replace(" ","-"), 
 									  self.date]) + ".py"
 		
-		# Write the dag configuration
-		# with open(self.dag_filename, 'w') as file:
-		# 	file.write(self.output_dag)
-		# 	file.close()
+		#Write the dag configuration
+		self.file_root = "../../../airflow/dags/"
+
+		print(os.path.abspath(self.file_root + self.dag_filename))
+		#sys.exit(1)
+		with open(self.file_root + self.dag_filename, 'w') as file:
+			file.write(self.output_dag)
+			file.close()
 
 #####################################################################################
 # Supplemental Public Methods
@@ -289,17 +296,21 @@ class DagGenerator():
 			layer.write_sublayers()
 
 
-		## TODO: THIS WILL NEED TO BE CHANGED
-		#Connect all layers for dag as a string
-		layertag_string = pprint.pformat(self.layer_tags)\
-							.replace("[", "")\
-							.replace("]", "")\
-							.replace("'", "")\
-							.replace("\n", "\n" + "\t"*2)
+	def connect_layers(self):
 
-		
-		#Write final layer associations
-		#self.structure += "chain({})".format(layertag_string)
+		#Template for generating connected layer
+		connected_layer = "\n{}"
+
+		#Add layers to the final dag.
+		#TODO: This will need to be changed to fix Airflow dependency issues
+		for layer_index in range(len(self.layerbag) - 1):
+			self.structure += connected_layer\
+									.format(" >> "\
+										.join([self.layerbag[layer_index]\
+															.head,
+											   self.layerbag[layer_index + 1]\
+											   				.tail])\
+																.replace("'", ""))
 
 
 	def write_imports(self):
@@ -569,10 +580,3 @@ class DagGenerator():
 			#print(str(e))
 			pass
 	            
-
-	
-	
-
-
-
-	

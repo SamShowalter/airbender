@@ -23,15 +23,14 @@ from scipy.stats.mstats import winsorize
 
 def wmp_impute(data, method = "median"):
 
-	column_names = data._get_numeric_data().columns 
-	nulls = data[data.isnull().sum()]
-	null_names = nulls[nulls > 0].index.tolist()
+    nulls = data.isnull().sum()
+    null_names = nulls[nulls > 0].index.tolist()
 
-	for name in null_names:
-		if method == "median":
-			data[name] = data[name].fillna(data[name].median(), inplace = True)
+    for name in null_names:
+        if method == "median":
+            data[name].fillna(data[name].median(), inplace = True)
 
-	return data
+    return data
 
 def wmp_winsorize(data, col_names, limits = [0.05, 0.05]):
     for column in col_names:
