@@ -53,11 +53,16 @@ def merge_data_operation(params, dag, **kwargs):
 		task_data = ti.xcom_pull(task_ids = task_id)
 
 		if isinstance(task_data, pd.DataFrame):
-			persist_cols += task_data.columns
+			persist_cols += list(task_data.columns)
 			data = pd.concat([data, task_data], axis = 1)
 		elif isinstance(task_data, pd.Series):
 			persist_cols.append(task_data.name)
 			data[task_data.name] = task_data
+
+
+	print()
+	print(data.isnull().sum())
+	print()
 
 	#Only persist mentioned
 	data = data.loc[:,persist_cols]

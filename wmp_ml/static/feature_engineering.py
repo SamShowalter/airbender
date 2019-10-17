@@ -19,12 +19,15 @@ import pandas as pd
 # Class and Constructor
 #####################################################################################
 
-def normalize_values(data, transformer, tag = 'Standard_Scaler_'):
+def normalize_values(data, tag = 'Standard_Scaler_'):
     
     if not isinstance(data, pd.Series):
         raise ValueError("Input data has more than one column")
 
-    
+    if data.std() == 0:
+        raise ValueError("ERROR: Data is all the same value and provides not insight.\
+        Please re-create dag without column included.")
+
     if tag != None:
         tag = "_" + tag
     else:

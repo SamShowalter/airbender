@@ -612,8 +612,6 @@ class DagLayer:
 			#Dictionary with all task details added to
 			#Operator detail dictionary
 
-			if 'fit' in task_id:
-				print(params)
 
 			new_op = DagOperator(task_id,
 											   final_operator,
