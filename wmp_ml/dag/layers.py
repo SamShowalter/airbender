@@ -18,6 +18,7 @@ import os
 import sys
 import copy
 import pprint
+import copy
 
 #Time 
 from datetime import datetime, timedelta
@@ -84,14 +85,34 @@ class DagLayer:
 		#TODO: Find a better place for it
 		self.op_router = None
 
-		#Storage of all operators in layer
-		self.operators = {}
+		#Conditional mapping for dynamic splitting
+		self.conditional_mapping = None
 
 #####################################################################################
 # Public, Orchestration Methods
 #####################################################################################
 
 	def parse_layer(self):
+		if self.conditional_mapping:
+			print("Not happening")
+			self.conditional_mappings = self.dag.layerbag[self.exec_order - 1].sublayer_order[-1].head
+
+			#print(self.dag.layerbag[self.exec_order - 1].)
+			print(self.conditional_mappings)
+			for mapping in self.conditional_mappings:
+				self.__parse_layer(mapping)
+
+		else:
+			self.__parse_layer()
+
+
+		#General parsing rules for specified layer
+		self.holistic_layer_parsing()
+
+		#Generate sublayer order
+		self.generate_sublayer_order()
+
+	def __parse_layer(self, conditional_mapping = None):
 		'''
 		Parse through all layers provided to Dag config and create
 		building blocks for families, sublayers, and layers.
@@ -106,16 +127,15 @@ class DagLayer:
 				#String parsing
 				self.__parse_string_task_family(self.parent, 
 										family, 
-										self.config[family])
+										self.config[family],
+										conditional_mapping = conditional_mapping)
 
 			#If family has a tuple key
 			if isinstance(family, tuple):
 				self.__parse_tuple_task_family(self.parent, 
 										family, 
-										self.config[family])
-
-		#General parsing rules for specified layer
-		self.holistic_layer_parsing()
+										self.config[family],
+										conditional_mapping = conditional_mapping)
 
 
 	def holistic_layer_parsing(self):
@@ -144,7 +164,10 @@ class DagLayer:
 
 
 			#Parse the string task family provided by the holistic operation
-			self.__parse_string_task_family(op, op, holistic[op], holistic_order = holistic_order)
+			self.__parse_string_task_family(op, 
+											op, 
+											holistic[op], 
+											holistic_order = holistic_order)
 
 #####################################################################################
 # Public Methods for Writing Dag Layer
@@ -168,7 +191,11 @@ class DagLayer:
 		#Add the operator to the parent dag
 		#Write families for each sublayer
 		for sublayer_name, sublayer in self.sublayers.items():
-			sublayer.write_operators()
+			if isinstance(sublayer, dict):
+				for cond_sublayer_name, cond_sublayer in sublayer.items():
+					cond_sublayer.write_operators()
+			else:
+				sublayer.write_operators()
 
 
 	def write_op_families(self):
@@ -190,7 +217,11 @@ class DagLayer:
 
 		#Write families for each sublayer
 		for sublayer_name, sublayer in self.sublayers.items():
-			sublayer.write_op_families()
+			if isinstance(sublayer, dict):
+				for cond_sublayer_name, cond_sublayer in sublayer.items():
+					cond_sublayer.write_op_families()
+			else:
+				sublayer.write_op_families()
 
 			
 
@@ -219,10 +250,17 @@ class DagLayer:
 
 		#Iterate through all sublayers, in order
 		for sublayer_name, sublayer in self.sublayers.items():
-			sublayer.write(head = True)
-			sublayer.write(head = False)
+			if isinstance(sublayer, dict):
+				for cond_sublayer_name, cond_sublayer in sublayer.items():
+					cond_sublayer.write(head = True)
+					cond_sublayer.write(head = False)
+			else:
+				sublayer.write(head = True)
+				sublayer.write(head = False)
+
 
 		#Partition final DAG file before establishing connections
+		#TODO: Make more intelligent
 		self.dag.layers += "\n## Connecting all sublayers (if > 1) for {} dag layer with tag {}"\
 															.format(self.parent.upper(),
 																	self.tag.upper())
@@ -234,10 +272,28 @@ class DagLayer:
 		#Generate order for sublayers
 		self.sublayer_order = [None]*len(self.sublayers)
 		for sublayer_name, sublayer in self.sublayers.items():
-			self.sublayer_order[sublayer.order] = sublayer
+			sub_order = None
+			if isinstance(sublayer,dict):
+				sub_order = sublayer[list(sublayer.keys())[0]].order
+			else:
+				sub_order = sublayer.order
 
-		self.head = self.sublayer_order[-1].refs['head']
-		self.tail = self.sublayer_order[0].refs['tail']
+			self.sublayer_order[sub_order] = sublayer
+
+	def generate_layer_head_tail(self):
+
+		if self.conditional_mapping:
+			self.tail = {}
+			self.head = {}
+			for cond_sublayer_name, cond_sublayer in self.sublayers['core'].items():
+				print(cond_sublayer.refs['head'])
+				self.head[cond_sublayer_name] = cond_sublayer.refs['head']
+				self.tail[cond_sublayer_name] = cond_sublayer.refs['tail']
+
+
+		else:
+			self.head = self.sublayer_order[-1].refs['head']
+			self.tail = self.sublayer_order[0].refs['tail']
 
 
 	def write_sublayer_associations(self):
@@ -248,20 +304,32 @@ class DagLayer:
 		'''
 
 		#Generate sublayer order
-		self.generate_sublayer_order()
+		self.generate_layer_head_tail()
 
+		if self.conditional_mapping:
+
+			for conditional_mapping in self.head:
+				conditional_assoc = "## Printing conditional associations for {}".format(conditional_mapping)
+				sublayer = copy.deepcopy(self.sublayer_order)
+				sublayer[0] = sublayer[0][conditional_mapping]
+				self.__write_sublayer_associations(sublayer)
+		else:
+			self.__write_sublayer_associations(self.sublayer_order)
+
+
+	def __write_sublayer_associations(self, sublayer_order):
 		#Template for generating connected layer
 		connected_layer = "\n{}"
 
 
 		#Add layers to the final dag.
 		#TODO: This will need to be changed to fix Airflow dependency issues
-		for sublayer_index in range(len(self.sublayer_order) - 1):
+		for sublayer_index in range(len(sublayer_order) - 1):
 			self.dag.layers += connected_layer\
 									.format(" >> "\
-										.join([self.sublayer_order[sublayer_index]\
+										.join([sublayer_order[sublayer_index]\
 															.refs['head'],
-											   self.sublayer_order[sublayer_index + 1]\
+											   sublayer_order[sublayer_index + 1]\
 											   				.refs['tail']])\
 																.replace("'", ""))
 #####################################################################################
@@ -294,6 +362,7 @@ class DagLayer:
 				 lineage, 
 				 order,
 				 subrank,
+				 conditional_mapping,
 				 dag):
 		'''
 		De-lineates the entire DagLayer by attributing
@@ -312,6 +381,7 @@ class DagLayer:
 		#Full lineage and layer parent concept
 		self.lineage = lineage
 		self.parent = lineage[0]
+		self.conditional_mapping = conditional_mapping
 
 		#Generates tag for layer
 		self.generate_tag(subrank)
@@ -358,7 +428,8 @@ class DagLayer:
 							parent,
 							family, 
 							operator_dict,
-							holistic_order = 0):
+							holistic_order = 0,
+							conditional_mapping = None):
 		'''
 		Parses input from the Layer configuration into a family of
 		operations that sequentially act on a target piece of data.
@@ -401,7 +472,8 @@ class DagLayer:
 													family_upstream_task, 
 													op, 
 													params, 
-													inherits)
+													inherits,
+													conditional_mapping)
 
 
 			#Add operation detail list of family operators 
@@ -418,14 +490,23 @@ class DagLayer:
 
 		#Create a family ID
 		#Verify correct formatting if there are filetypes
-		family_id = self.__create_family_id(family)
+		family_id = self.__create_family_id(family, conditional_mapping)
 
 		#Determine which sublayer this family applies to
 		#Then add the task family to the layer
-		if holistic_order == 0:
+		if holistic_order == 0 and conditional_mapping == None:
 			self.sublayers.setdefault('core', 
 									DagSubLayer('core', holistic_order, self))\
 									.add_op_family(family_id, family_ops)
+
+		elif conditional_mapping != None:
+			dsl = self.sublayers.setdefault('core', {})\
+								.setdefault(conditional_mapping,
+								DagSubLayer(conditional_mapping, holistic_order, self))
+
+			self.sublayers['core'][conditional_mapping].add_op_family(family_id, family_ops)
+									
+
 		else:
 			self.sublayers.setdefault(parent, 
 									DagSubLayer(parent, holistic_order, self))\
@@ -438,7 +519,8 @@ class DagLayer:
 							parent, 
 							family_set, 
 							operator_dict,
-							holistic_order = 0):
+							holistic_order = 0,
+							conditional_mapping = None):
 		"""
 		Function that parses tuple tasks. It iterate through the tuple key
 		(family_set) and parses each as its own string task.
@@ -463,7 +545,8 @@ class DagLayer:
 			self.__parse_string_task_family(parent,
 									family,
 									operator_dict,
-									holistic_order)
+									holistic_order,
+									conditional_mapping)
 
 
 	def __prime_operator(self, 
@@ -472,7 +555,8 @@ class DagLayer:
 						family_upstream_task,
 						op, 
 						params,
-						inherits = False):
+						inherits = False,
+						conditional_mapping = None):
 		'''
 		One of the most import functions for the layer. This
 		process takes general configuration input and
@@ -529,8 +613,8 @@ class DagLayer:
              				'args': {'func': op,
              						 'params': params,
              						 #Figure out model id generation for eval tasks
-             						 'model_id': None},
-             				'task_tag': [family]},
+             						 'model_id': conditional_mapping},
+             				'task_tag': [conditional_mapping, family]},
              # Will wait to do any EDA design patterns
              # 'eda': 
              # 				{'operator':bulk_data_operation, 
@@ -652,6 +736,7 @@ class DagLayer:
 		#Raise an error if this task is already 
 		#defined in the dag
 		if task_id in self.dag.tasks:
+			print(task_id)
 			raise AttributeError("Task with the same name has already been created. Check your inputs")
 		
 		#Add the task ID to the dag
@@ -661,7 +746,7 @@ class DagLayer:
 		return task_id
 
 
-	def __create_family_id(self, family):
+	def __create_family_id(self, family, conditional_mapping = None):
 		'''
 		Create a family id and then check to ensure that it is not a duplicate
 		from somewhere else.
@@ -682,6 +767,10 @@ class DagLayer:
 
 		#Generate family id
 		family_id = "_".join([self.tag, family])
+
+		if conditional_mapping is not None:
+			family_id = conditional_mapping + "_" + family_id
+			print(family_id)
 
 		#Check to ensure that the specific family_id is not taken
 		if family_id in self.family_ids:

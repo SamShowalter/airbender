@@ -69,6 +69,7 @@ class DagGenerator():
 		self.op_families = ''''''
 		
 		#Dag layers information
+
 		self.layerbag = []
 		self.layer_tags = []
 		self.layers = ''''''
@@ -152,17 +153,19 @@ class DagGenerator():
 		#Write all layer information to dag output
 		self.write_layers()
 
-		#Connect all of the layers
+		# #Connect all of the layers
 		self.connect_layers()
 
 		#Write all imports to dag output
 		self.write_imports()
 
+
 		#Debugging statement. Can be commented out or removed
 		print("\nDisplaying Ordered Dag Layers with Tags:\n")
 		for item in self.layerbag:
 			if isinstance(item, DagLayer):
-				print(item.exec_order,item.lineage, item.tag)
+				print(item.exec_order,
+					item.lineage, item.tag, item.conditional_mapping)
 
 		#Create output dag string
 		self.output_dag = self.output_dag.format(self.dag_name,
@@ -270,6 +273,10 @@ class DagGenerator():
 		'''
 		self.layerbag = self.__flatten_layers(self.layerbag, [])
 
+		#Re-assign order
+		for i in range(len(self.layerbag)):
+			self.layerbag[i].exec_order = i
+
 
 	def parse_layers(self):
 		'''
@@ -307,13 +314,22 @@ class DagGenerator():
 		#Add layers to the final dag.
 		#TODO: This will need to be changed to fix Airflow dependency issues
 		for layer_index in range(len(self.layerbag) - 1):
-			self.structure += connected_layer\
-									.format(" >> "\
-										.join([self.layerbag[layer_index]\
-															.head,
-											   self.layerbag[layer_index + 1]\
-											   				.tail])\
-																.replace("'", ""))
+
+				if isinstance(self.layerbag[layer_index + 1].tail, dict):
+					print("FOUND ME")
+					chain_items = list(self.layerbag[layer_index + 1].tail.values())
+					self.structure += "\nchain({}, {})".format(
+														self.layerbag[layer_index].head,
+														pprint.pformat(chain_items)).replace("'", "")
+
+				else:
+					self.structure += connected_layer\
+											.format(" >> "\
+												.join([self.layerbag[layer_index]\
+																	.head,
+													   self.layerbag[layer_index + 1]\
+													   				.tail])\
+																		.replace("'", ""))
 
 
 	def write_imports(self):
@@ -424,13 +440,10 @@ class DagGenerator():
 		#If the subsection is a DagLayer
 		#Delineate
 		if isinstance(subsection, DagLayer):
-			layer_order = self.execution_hierarchy[lineage[0]]
-			subsection.delineate(lineage, 
-								order = layer_order, subrank = None,
-								dag = self)
+			
+			#Delineate layer
+			self.__layer_delineate(subsection, lineage, None)
 
-			#Add new physical artifact to conceptual layer
-			self.layerbag[layer_order] = self.layerbag[layer_order] + [subsection]
 
 		#If the subsection is a list or set of length one
 		#Delineate and remove list data structure
@@ -441,14 +454,10 @@ class DagGenerator():
 			#Pluck item from list
 			subsection = subsection[0]
 
-			#Delineate
-			layer_order = self.execution_hierarchy[lineage[0]]
-			subsection.delineate(lineage, 
-								order = layer_order, subrank = None,
-								dag = self)
+			#Delineate layer
+			self.__layer_delineate(subsection, lineage, None)
 
-			#Add new physical artifact to conceptual layer
-			self.layerbag[layer_order] = self.layerbag[layer_order] + [subsection]
+			
 
 		#If subsection is a list or set with length longer
 		# Than one, Delineate and add subrank order
@@ -464,10 +473,7 @@ class DagGenerator():
 				if isinstance(item, DagLayer):
 
 					#Delineate
-					layer_order = self.execution_hierarchy[lineage[0]]
-					item.delineate(lineage, 
-									order = layer_order, subrank = order, 
-									dag = self)
+					layer_order = self.__layer_delineate(item, lineage, order)
 					sublayer.append(item)
 					order += 1
 
@@ -479,7 +485,20 @@ class DagGenerator():
 				for key in subsection:
 					self.__layer_lineage(subsection[key], lineage + [key])
 
-	
+	def __layer_delineate(self, subsection, lineage, subrank = None):
+		layer_order = self.execution_hierarchy[lineage[0]]['order']
+		conditional_mapping = self.execution_hierarchy[lineage[0]]['conditional_mapping']
+		subsection.delineate(lineage, 
+					  order = layer_order, subrank = subrank, 
+					  conditional_mapping = conditional_mapping,
+					  dag = self)
+
+		if subrank is None:
+			#Add new physical artifact to conceptual layer
+			self.layerbag[layer_order] = self.layerbag[layer_order] + [subsection]
+		else:
+			return layer_order
+					
 
 	def __flatten_layers(self, l, sublist):
 		'''

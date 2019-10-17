@@ -54,9 +54,6 @@ class DagOperator:
 		#Import callables as strings into final Python file
 		self.op_family.sublayer.layer.dag.import_dynamically(self.callable)
 
-		#Replaces the variable name to be shorter, but there should be no overlap
-		#There would likely never be a case of a name thats the same, with different lineages
-		self.task_id = self.task_id.replace(self.op_family.sublayer.layer.tag + "_", "")
 
 		#Add operator to operators list as a string.
 		self.operator_str =  "\n{} = {}".format(self.task_id,
