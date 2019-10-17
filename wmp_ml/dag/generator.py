@@ -159,6 +159,7 @@ class DagGenerator():
 		self.write_imports()
 
 		#Debugging statement. Can be commented out or removed
+		print("\nDisplaying Ordered Dag Layers with Tags:\n")
 		for item in self.layerbag:
 			if isinstance(item, DagLayer):
 				print(item.exec_order,item.lineage, item.tag)
@@ -184,7 +185,8 @@ class DagGenerator():
 		self.file_root = "../../../airflow/dags/"
 
 		#Used for debugging, can be removed
-		print("\nFile saved at: {}".format(os.path.abspath(self.file_root + self.dag_filename)))
+		print("\nGenerated airflow file saved at: {}"\
+			.format(os.path.abspath(self.file_root + self.dag_filename)))
 
 		with open(self.file_root + self.dag_filename, 'w') as file:
 			file.write(self.output_dag)
