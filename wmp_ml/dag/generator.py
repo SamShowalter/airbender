@@ -183,8 +183,9 @@ class DagGenerator():
 		#Write the dag configuration
 		self.file_root = "../../../airflow/dags/"
 
-		print(os.path.abspath(self.file_root + self.dag_filename))
-		#sys.exit(1)
+		#Used for debugging, can be removed
+		print("\nFile saved at: {}".format(os.path.abspath(self.file_root + self.dag_filename)))
+
 		with open(self.file_root + self.dag_filename, 'w') as file:
 			file.write(self.output_dag)
 			file.close()

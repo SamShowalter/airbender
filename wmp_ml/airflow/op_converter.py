@@ -98,14 +98,14 @@ def col_data_operation(params, dag, **kwargs):
 
 
 def fit_operation(params, dag, **kwargs):
-	if not _is_fitted(params['model']):
-		ti = kwargs['ti']
+	#if not _is_fitted(params['model']):
+	ti = kwargs['ti']
 
-		X_train = ti.xcom_pull(key = "X_train")
-		y_train = ti.xcom_pull(key = "y_train")
+	X_train = ti.xcom_pull(key = "X_train")
+	y_train = ti.xcom_pull(key = "y_train")
 
-		model = params['model'](**params['params'])
-		model.fit(X_train, y_train)
+	model = params['model'](**params['params'])
+	model.fit(X_train, y_train)
 
 	return model
 
