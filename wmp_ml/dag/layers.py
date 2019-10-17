@@ -94,11 +94,10 @@ class DagLayer:
 
 	def parse_layer(self):
 		if self.conditional_mapping:
-			print("Not happening")
+
+			#Set conditional mappings
 			self.conditional_mappings = self.dag.layerbag[self.exec_order - 1].sublayer_order[-1].head
 
-			#print(self.dag.layerbag[self.exec_order - 1].)
-			print(self.conditional_mappings)
 			for mapping in self.conditional_mappings:
 				self.__parse_layer(mapping)
 
@@ -286,7 +285,6 @@ class DagLayer:
 			self.tail = {}
 			self.head = {}
 			for cond_sublayer_name, cond_sublayer in self.sublayers['core'].items():
-				print(cond_sublayer.refs['head'])
 				self.head[cond_sublayer_name] = cond_sublayer.refs['head']
 				self.tail[cond_sublayer_name] = cond_sublayer.refs['tail']
 
@@ -410,7 +408,9 @@ class DagLayer:
 		for i in range(len(self.lineage)):
 			if i == 0:
 				#First letters of the parent concept
-				self.tag += "".join([token[0] for token in self.lineage[i].split("_")])
+				self.tag += "".join([token[0] 
+								for token in 
+								self.lineage[i].split("_")])
 			else:
 				#Full name of the subconcepts
 				self.tag += "_" + self.lineage[i]
@@ -736,8 +736,9 @@ class DagLayer:
 		#Raise an error if this task is already 
 		#defined in the dag
 		if task_id in self.dag.tasks:
-			print(task_id)
-			raise AttributeError("Task with the same name has already been created. Check your inputs")
+			raise AttributeError("Task with the same name (task_id = {})\
+							 has already been created. Check your inputs")\
+								.format(task_id)
 		
 		#Add the task ID to the dag
 		self.dag.tasks.add(task_id)
@@ -770,7 +771,7 @@ class DagLayer:
 
 		if conditional_mapping is not None:
 			family_id = conditional_mapping + "_" + family_id
-			print(family_id)
+
 
 		#Check to ensure that the specific family_id is not taken
 		if family_id in self.family_ids:

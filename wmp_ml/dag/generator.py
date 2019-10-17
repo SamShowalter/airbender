@@ -316,7 +316,6 @@ class DagGenerator():
 		for layer_index in range(len(self.layerbag) - 1):
 
 				if isinstance(self.layerbag[layer_index + 1].tail, dict):
-					print("FOUND ME")
 					chain_items = list(self.layerbag[layer_index + 1].tail.values())
 					self.structure += "\nchain({}, {})".format(
 														self.layerbag[layer_index].head,
