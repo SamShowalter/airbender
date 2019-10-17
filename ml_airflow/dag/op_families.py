@@ -8,7 +8,7 @@
 #
 #####################################################################################
 
-from wmp_ml.dag.operators import DagOperator
+from ml_airflow.dag.operators import DagOperator
 
 #####################################################################################
 # External Library and Module Imports

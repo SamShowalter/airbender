@@ -19,7 +19,7 @@ import sys
 
 #Delete this once package matures
 #For now, change to your own path
-sys.path.append(os.path.abspath(os.path.join(__file__, "../../../repos/ML-Airflow/")))
+sys.path.append(os.path.abspath(os.path.join(__file__, "../../../repos/ML_Airflow/")))
 
 
 # Airflow DAG

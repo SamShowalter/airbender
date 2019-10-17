@@ -29,12 +29,12 @@ import inspect
 
 # Import package specific information
 sys.path.append("../../")
-from wmp_ml.airflow.op_converter import *
+from ml_airflow.airflow.op_converter import *
 
 #Import SubLayer object
-from wmp_ml.dag.sublayers import DagSubLayer
-from wmp_ml.dag.op_families import OpFamily 
-from wmp_ml.dag.operators import DagOperator
+from ml_airflow.dag.sublayers import DagSubLayer
+from ml_airflow.dag.op_families import OpFamily 
+from ml_airflow.dag.operators import DagOperator
 
 #####################################################################################
 # Class and Constructor

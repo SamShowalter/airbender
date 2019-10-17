@@ -17,8 +17,3 @@
 #####################################################################################
 # Class and Constructor
 #####################################################################################
-
-data_source_lkp = {'csv': read_csv}
-
-def read_csv(filepath, **kwargs):
-	return pd.read_csv(filepath, **kwargs)

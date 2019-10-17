@@ -13,7 +13,7 @@
 # External Library and Module Imports
 #####################################################################################
 
-from wmp_ml.dag.op_families import OpFamily
+from ml_airflow.dag.op_families import OpFamily
 
 import pprint
 

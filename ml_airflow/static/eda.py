@@ -1,7 +1,7 @@
 #####################################################################################
 #
 #
-#   Basic EDA for WMP_ML Airflow DAG
+#   Basic EDA for ML Airflow DAG
 #  
 #   Author: Sam Showalter
 #   Date: October 6, 2018

@@ -1,7 +1,7 @@
 #####################################################################################
 #
 #
-# 	Custom WMP_ML Feature Engineering
+# 	Custom ML Airflow Feature Engineering
 #  
 #	Author: Sam Showalter
 #	Date: October 6, 2018
@@ -37,13 +37,13 @@ def normalize_values(data, tag = 'Standard_Scaler_'):
 
     return data
 
-def wmp_get_dummies(data):
+def mla_get_dummies(data):
 
     dummy_df = pd.get_dummies(data)
 
     return dummy_df
 
-def wmp_linear_transformation(data, method):
+def mla_linear_transformation(data, method):
 
     res, _ = method(data)
 
@@ -51,7 +51,7 @@ def wmp_linear_transformation(data, method):
 
 
 
-def convert_boolean_df(data, boolean_names_and_values, tag = "_bool"):
+def create_boolean_df(data, boolean_names_and_values, tag = "_bool"):
 
     boolean_df = data
 
