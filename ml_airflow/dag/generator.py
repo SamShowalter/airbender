@@ -83,7 +83,8 @@ class DagGenerator():
 		self.output_dag = None
 		with open(
 				os.path.abspath(
-					os.path.join(__file__, '../../config/dag_template.txt')), 'r') as template:
+					os.path.join(__file__, 
+						'../../config/dag_template.txt')), 'r') as template:
 			self.output_dag = template.read()
 
 		#Default configuration hierarchy (config driven)
@@ -191,6 +192,7 @@ class DagGenerator():
 		print("\nGenerated airflow file saved at: {}"\
 			.format(os.path.abspath(self.file_root + self.dag_filename)))
 
+		#Write the file
 		with open(self.file_root + self.dag_filename, 'w') as file:
 			file.write(self.output_dag)
 			file.close()
@@ -307,6 +309,11 @@ class DagGenerator():
 
 
 	def connect_layers(self):
+		'''
+		Connect all layers of the graph together, including 
+		any complicated sublayer connections or unrolling of previous
+		layers. 
+		'''
 
 		#Template for generating connected layer
 		connected_layer = "\n{}"
@@ -434,6 +441,8 @@ class DagGenerator():
 			subsection:				Subsection of configuration to parse
 			lineage:				Lineage of conceptual layer, provided
 
+		Sub_Function:
+			__layer_delineate:		Delineates layer with all information
 		'''
 
 		#If the subsection is a DagLayer
@@ -456,7 +465,6 @@ class DagGenerator():
 			#Delineate layer
 			self.__layer_delineate(subsection, lineage, None)
 
-			
 
 		#If subsection is a list or set with length longer
 		# Than one, Delineate and add subrank order
@@ -471,7 +479,7 @@ class DagGenerator():
 			for item in subsection:
 				if isinstance(item, DagLayer):
 
-					#Delineate
+					#Delineate as a subranked subsection, which will return layer order
 					layer_order = self.__layer_delineate(item, lineage, order)
 					sublayer.append(item)
 					order += 1
@@ -485,16 +493,25 @@ class DagGenerator():
 					self.__layer_lineage(subsection[key], lineage + [key])
 
 	def __layer_delineate(self, subsection, lineage, subrank = None):
+		"""
+		Delineates the layer of the dag by giving it all of the heritage
+		and parent hierarchy information needed to construct the
+		full graph.
+		"""
 		layer_order = self.execution_hierarchy[lineage[0]]['order']
-		conditional_mapping = self.execution_hierarchy[lineage[0]]['conditional_mapping']
+		conditional_mapping = self.execution_hierarchy[lineage[0]]['map']
+		split = self.execution_hierarchy[lineage[0]]['split']
 		subsection.delineate(lineage, 
 					  order = layer_order, subrank = subrank, 
 					  conditional_mapping = conditional_mapping,
+					  split = split,
 					  dag = self)
 
 		if subrank is None:
+
 			#Add new physical artifact to conceptual layer
 			self.layerbag[layer_order] = self.layerbag[layer_order] + [subsection]
+		
 		else:
 			return layer_order
 					
@@ -539,7 +556,7 @@ class DagGenerator():
 
 	def __rec_imports(self,
 					  config_section):
-		'''
+		"""
 		Recursive function that traverses through a configuration
 		dictionary, previously validated by the owning dag layer,
 		and generated import statements for all non-primitive objects 
@@ -548,9 +565,8 @@ class DagGenerator():
 		Args:
 			config_section:					Section or subsection of DAG configuration
 
-		'''
-
-	    
+		"""
+ 
 		try:
 
 			#If the section is a Dag layer, switch to its config file

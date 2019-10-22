@@ -41,6 +41,17 @@ def evaluation_operation(params, dag, **kwargs):
 
 	return params['func'](y_test, preds, **params['params'])
 
+def merge_metrics_operation(params, dag, **kwargs):
+
+	ti = kwargs['ti']
+
+	metrics_dict = {params['model']: {}}
+
+	for task_id in params['merge_ids']:
+		metric = ti.xcom_pull(task_ids = task_id)
+		metrics_dict[params['model']][task_id] = metric
+		
+	return metrics_dict
 
 def merge_data_operation(params, dag, **kwargs):
 
@@ -142,6 +153,8 @@ def split_operation(params, dag, **kwargs):
 	ti.xcom_push(key = 'X_test', value = X_test)
 	ti.xcom_push(key = 'y_train', value = y_train)
 	ti.xcom_push(key = 'y_test', value = y_test)
+
+	ti.xcom_push(key = 'split_method', value = params['func'].__name__)
 
 
 def k_fold_operation(func, params, dag, **kwargs):

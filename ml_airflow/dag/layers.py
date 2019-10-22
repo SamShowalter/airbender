@@ -81,6 +81,9 @@ class DagLayer:
 		# Merge head
 		self.merge_head = 'core'
 
+		#Holistic order of the sublayers
+		self.holistic_order = -1
+
 		#Operator router (defined in function below)
 		#TODO: Find a better place for it
 		self.op_router = None
@@ -93,51 +96,25 @@ class DagLayer:
 #####################################################################################
 
 	def parse_layer(self):
-		if self.conditional_mapping:
+		"""
+		Public function to parse layer based on conditional mappings
 
-			#Set conditional mappings
-			self.conditional_mappings = self.dag.layerbag[self.exec_order - 1].sublayer_order[-1].head
+		Sub_Functions:
+			__parse_layer:					Private function that parses all op_families 
+			holistic_layer_parsing:			Parsing processes necessitated inherently by layer
+			generate_sublayer_order:		Determine order of sublayers
 
-			for mapping in self.conditional_mappings:
-				self.__parse_layer(mapping)
+		"""
 
-		else:
-			self.__parse_layer()
-
-
-		#General parsing rules for specified layer
-		self.holistic_layer_parsing()
+		#Parse layer
+		self.__parse_layer_split()
 
 		#Generate sublayer order
 		self.generate_sublayer_order()
 
-	def __parse_layer(self, conditional_mapping = None):
-		'''
-		Parse through all layers provided to Dag config and create
-		building blocks for families, sublayers, and layers.
+	
 
-		'''
-
-		#For each operator family in the config
-		for family in self.config:
-
-			#If family has a string key
-			if isinstance(family, str):
-				#String parsing
-				self.__parse_string_task_family(self.parent, 
-										family, 
-										self.config[family],
-										conditional_mapping = conditional_mapping)
-
-			#If family has a tuple key
-			if isinstance(family, tuple):
-				self.__parse_tuple_task_family(self.parent, 
-										family, 
-										self.config[family],
-										conditional_mapping = conditional_mapping)
-
-
-	def holistic_layer_parsing(self):
+	def holistic_layer_parsing(self, conditional_mapping = None, split = None):
 		'''
 		Holistic layer parsing involves operations that
 		are not specified by the user but must be created in order
@@ -154,19 +131,60 @@ class DagLayer:
 		if holistic is None:
 			return
 
-		holistic_order = 0
+		if split == None:
+			split = ""
+		else:
+			split = "_" + split
+
 		#For each operation in the holistic dictionary found in the op_router
 		for op in holistic:
 
 			#Increment holistic order
-			holistic_order += 1
+			self.holistic_order += 1
 
 
-			#Parse the string task family provided by the holistic operation
-			self.__parse_string_task_family(op, 
-											op, 
-											holistic[op], 
-											holistic_order = holistic_order)
+			if split:
+
+					if self.conditional_mapping:
+					#Parse the string task family provided by the holistic operation
+
+						for cond_mapping in self.sublayers['core' + split].keys():
+							self.__parse_string_task_family(op, 
+															op, 
+															holistic[op], 
+															holistic = True,
+															conditional_mapping = cond_mapping,
+															split = split)
+
+					else:
+						#Parse the string task family provided by the holistic operation
+						self.__parse_string_task_family(op, 
+														op, 
+														holistic[op], 
+														holistic = True,
+														conditional_mapping = conditional_mapping,
+														split = split)
+			else:
+				if self.conditional_mapping:
+					#Parse the string task family provided by the holistic operation
+
+						for cond_mapping in self.sublayers['core'].keys():
+							self.__parse_string_task_family(op, 
+															op, 
+															holistic[op], 
+															holistic = True,
+															conditional_mapping = cond_mapping,
+															split = split)
+
+				else:
+					#Parse the string task family provided by the holistic operation
+					self.__parse_string_task_family(op, 
+													op, 
+													holistic[op], 
+													holistic = True,
+													conditional_mapping = conditional_mapping,
+													split = split)
+
 
 #####################################################################################
 # Public Methods for Writing Dag Layer
@@ -218,6 +236,8 @@ class DagLayer:
 		for sublayer_name, sublayer in self.sublayers.items():
 			if isinstance(sublayer, dict):
 				for cond_sublayer_name, cond_sublayer in sublayer.items():
+					self.dag.op_families += \
+					"\n\n## Families pertaining to {} conditional sublayer\n".format(cond_sublayer_name)
 					cond_sublayer.write_op_families()
 			else:
 				sublayer.write_op_families()
@@ -243,7 +263,7 @@ class DagLayer:
 		self.dag.layers += \
 		'''
 \n###########################################################
-# Sublayer  pertaining to {} dag layer with tag {}
+# Sublayer pertaining to {} dag layer with tag {}
 ###########################################################\n'''\
 		.format(self.parent.upper(), self.tag.upper())
 
@@ -257,12 +277,12 @@ class DagLayer:
 				sublayer.write(head = True)
 				sublayer.write(head = False)
 
-
-		#Partition final DAG file before establishing connections
-		#TODO: Make more intelligent
-		self.dag.layers += "\n## Connecting all sublayers (if > 1) for {} dag layer with tag {}"\
-															.format(self.parent.upper(),
-																	self.tag.upper())
+		if len(self.sublayer_order) > 1:
+			#Partition final DAG file before establishing connections
+			#TODO: Make more intelligent
+			self.dag.layers += "\n## Connecting all sublayers (if > 1) for {} dag layer with tag {}"\
+																.format(self.parent.upper(),
+																		self.tag.upper())
 		#Write sublayer associations
 		self.write_sublayer_associations()
 
@@ -271,6 +291,7 @@ class DagLayer:
 		#Generate order for sublayers
 		self.sublayer_order = [None]*len(self.sublayers)
 		for sublayer_name, sublayer in self.sublayers.items():
+			#print(sublayer.name)
 			sub_order = None
 			if isinstance(sublayer,dict):
 				sub_order = sublayer[list(sublayer.keys())[0]].order
@@ -278,6 +299,8 @@ class DagLayer:
 				sub_order = sublayer.order
 
 			self.sublayer_order[sub_order] = sublayer
+
+
 
 	def generate_layer_head_tail(self):
 
@@ -307,29 +330,16 @@ class DagLayer:
 		if self.conditional_mapping:
 
 			for conditional_mapping in self.head:
-				conditional_assoc = "## Printing conditional associations for {}".format(conditional_mapping)
+				self.dag.layers += "\n\n## Printing conditional associations for {}".format(conditional_mapping)
 				sublayer = copy.deepcopy(self.sublayer_order)
-				sublayer[0] = sublayer[0][conditional_mapping]
+				for i in range(len(sublayer)):
+					sublayer[i] = sublayer[i][conditional_mapping]
 				self.__write_sublayer_associations(sublayer)
 		else:
 			self.__write_sublayer_associations(self.sublayer_order)
 
 
-	def __write_sublayer_associations(self, sublayer_order):
-		#Template for generating connected layer
-		connected_layer = "\n{}"
-
-
-		#Add layers to the final dag.
-		#TODO: This will need to be changed to fix Airflow dependency issues
-		for sublayer_index in range(len(sublayer_order) - 1):
-			self.dag.layers += connected_layer\
-									.format(" >> "\
-										.join([sublayer_order[sublayer_index]\
-															.refs['head'],
-											   sublayer_order[sublayer_index + 1]\
-											   				.refs['tail']])\
-																.replace("'", ""))
+	
 #####################################################################################
 # Public Validation Methods
 #####################################################################################
@@ -361,6 +371,7 @@ class DagLayer:
 				 order,
 				 subrank,
 				 conditional_mapping,
+				 split,
 				 dag):
 		'''
 		De-lineates the entire DagLayer by attributing
@@ -379,6 +390,7 @@ class DagLayer:
 		#Full lineage and layer parent concept
 		self.lineage = lineage
 		self.parent = lineage[0]
+		self.split = split
 		self.conditional_mapping = conditional_mapping
 
 		#Generates tag for layer
@@ -424,12 +436,81 @@ class DagLayer:
 # Private, Supplementary Methods for Assisting Orchestration
 #####################################################################################
 
+	def __parse_layer_split(self):
+
+
+		if self.split:
+
+			for split_section in self.split:
+
+				self.holistic_order += 1
+				self.__parse_layer_conditionality(split = split_section)
+
+				#General parsing rules for specified layer
+				self.holistic_layer_parsing(split = split_section)
+
+		else:
+			self.holistic_order += 1
+			self.__parse_layer_conditionality()
+
+			#General parsing rules for specified layer
+			self.holistic_layer_parsing()
+
+	def __parse_layer_conditionality(self, split = None):
+
+		#Look for conditional mapping
+		if self.conditional_mapping:
+
+			#Set conditional mappings as the head of the previous layer
+			self.conditional_mappings = self.dag.layerbag[self.exec_order - 1].sublayer_order[-1].head
+
+			#Iterate through mappings and parse layer
+			for mapping in self.conditional_mappings:
+				self.__parse_layer_core(conditional_mapping = mapping, split = split)
+
+		else:
+			self.__parse_layer_core(split = split)
+
+
+
+	def __parse_layer_core(self, conditional_mapping = None, split = None):
+		'''
+		Parse through all layers provided to Dag config and create
+		building blocks for families, sublayers, and layers.
+
+		'''
+
+		#For each operator family in the config
+		for family in self.config:
+
+			#If family has a string key
+			if isinstance(family, str):
+
+				#String parsing
+				self.__parse_string_task_family(self.parent, 
+										family, 
+										self.config[family],
+										conditional_mapping = conditional_mapping,
+										split = split)
+
+			#If family has a tuple key
+			if isinstance(family, tuple):
+
+				#Tuple parsing
+				self.__parse_tuple_task_family(self.parent, 
+										family, 
+										self.config[family],
+										conditional_mapping = conditional_mapping,
+										split = split)
+
+
 	def __parse_string_task_family(self,
 							parent,
 							family, 
 							operator_dict,
-							holistic_order = 0,
-							conditional_mapping = None):
+							holistic = False,
+							conditional_mapping = None,
+							split = None):
 		'''
 		Parses input from the Layer configuration into a family of
 		operations that sequentially act on a target piece of data.
@@ -473,7 +554,8 @@ class DagLayer:
 													op, 
 													params, 
 													inherits,
-													conditional_mapping)
+													conditional_mapping,
+													split)
 
 
 			#Add operation detail list of family operators 
@@ -486,41 +568,92 @@ class DagLayer:
 			inherits = True
 			family_upstream_task = op_detail_list[-1].task_id
 
+		self.__store_op_family(parent, family, family_ops, holistic, conditional_mapping, split)
 
+
+	def __store_op_family(self, parent, family, family_ops, holistic, conditional_mapping, split):
 
 		#Create a family ID
 		#Verify correct formatting if there are filetypes
-		family_id = self.__create_family_id(family, conditional_mapping)
+		family_id = self.__create_family_id(family, split, conditional_mapping)
 
 		#Determine which sublayer this family applies to
 		#Then add the task family to the layer
-		if holistic_order == 0 and conditional_mapping == None:
-			self.sublayers.setdefault('core', 
-									DagSubLayer('core', holistic_order, self))\
-									.add_op_family(family_id, family_ops)
+		if not holistic and conditional_mapping == None:
+			if split:
+				self.sublayers.setdefault('core_' + split, 
+										DagSubLayer('core_' + split, self.holistic_order, self))\
+										.add_op_family(family_id, family_ops)
 
-		elif conditional_mapping != None:
-			dsl = self.sublayers.setdefault('core', {})\
-								.setdefault(conditional_mapping,
-								DagSubLayer(conditional_mapping, holistic_order, self))
+			else:
+				self.sublayers.setdefault('core', 
+										DagSubLayer('core', self.holistic_order, self))\
+										.add_op_family(family_id, family_ops)
 
-			self.sublayers['core'][conditional_mapping].add_op_family(family_id, family_ops)
+		elif not holistic and conditional_mapping != None:
+
+			if split:
+				dsl = self.sublayers.setdefault('core', {})\
+									.setdefault(split, {})\
+									.setdefault(conditional_mapping,
+									DagSubLayer("_".join([split,conditional_mapping]), 
+										self.holistic_order, self))
+
+				self.sublayers['core'][split][conditional_mapping].add_op_family(family_id, family_ops)
+				
+			else:
+				dsl = self.sublayers.setdefault('core', {})\
+									.setdefault(conditional_mapping,
+									DagSubLayer(conditional_mapping, 
+										self.holistic_order, self))
+
+				self.sublayers['core'][conditional_mapping].add_op_family(family_id, family_ops)
+				
 									
+		elif conditional_mapping != None:
 
-		else:
-			self.sublayers.setdefault(parent, 
-									DagSubLayer(parent, holistic_order, self))\
-									.add_op_family(family_id, family_ops)
+			if split:
+				dsl = self.sublayers.setdefault(parent + "_" + split, {})\
+									.setdefault(split, {})\
+									.setdefault(conditional_mapping,
+									DagSubLayer("_".join([parent, split, conditional_mapping]), 
+										self.holistic_order, self))
+
+				self.sublayers[parent][split][conditional_mapping].add_op_family(family_id, family_ops)
+				
+
+			else:
+				dsl = self.sublayers.setdefault(parent, {})\
+									.setdefault(conditional_mapping,
+									DagSubLayer(parent + "_" + conditional_mapping, 
+										self.holistic_order, self))
+
+				self.sublayers[parent][conditional_mapping].add_op_family(family_id, family_ops)
+
 			self.merge_head = parent
 
+
+		else:
+			if split:
+				self.sublayers.setdefault(parent + split, 
+										DagSubLayer(parent + split, self.holistic_order, self))\
+										.add_op_family(family_id, family_ops)
+				self.merge_head = parent
+
+			else:
+				self.sublayers.setdefault(parent, 
+										DagSubLayer(parent, self.holistic_order, self))\
+										.add_op_family(family_id, family_ops)
+				self.merge_head = parent
 
 
 	def __parse_tuple_task_family(self,
 							parent, 
 							family_set, 
 							operator_dict,
-							holistic_order = 0,
-							conditional_mapping = None):
+							holistic = False,
+							conditional_mapping = None,
+							split = None):
 		"""
 		Function that parses tuple tasks. It iterate through the tuple key
 		(family_set) and parses each as its own string task.
@@ -545,8 +678,9 @@ class DagLayer:
 			self.__parse_string_task_family(parent,
 									family,
 									operator_dict,
-									holistic_order,
-									conditional_mapping)
+									holistic,
+									conditional_mapping,
+									split)
 
 
 	def __prime_operator(self, 
@@ -556,7 +690,8 @@ class DagLayer:
 						op, 
 						params,
 						inherits = False,
-						conditional_mapping = None):
+						conditional_mapping = None,
+						split = None):
 		'''
 		One of the most import functions for the layer. This
 		process takes general configuration input and
@@ -607,13 +742,15 @@ class DagLayer:
              				{'operator':bulk_data_operation, 
              				'args': {'func': op,
              						'params': params},
-             				'task_tag':[family, op_name]},
+             				'task_tag':[family, split, op_name]},
              'evaluation': 
              				{'operator':evaluation_operation, 
              				'args': {'func': op,
              						 'params': params,
              						 #Figure out model id generation for eval tasks
              						 'model_id': conditional_mapping},
+             				'holistic': {'merge_metrics': #Parent
+             								{'merge_metrics': {}}},
              				'task_tag': [conditional_mapping, family]},
              # Will wait to do any EDA design patterns
              # 'eda': 
@@ -639,16 +776,22 @@ class DagLayer:
              						 'inherits': inherits,
              						 'column_data_id': family_upstream_task},
              				'holistic': {'merge_layer': #Parent
-             								{'merge_cols': #Family
-             									{'merge_key': self.tag}}},
-             				'task_tag': [family, op_name]},
+             								{'merge_cols': {}}},
+             				'task_tag': [family, split, op_name]},
 
              #HOLISTIC LAYER OPERATIONS START HERE
              'merge_layer': 
              				{'operator': merge_data_operation, 
              				'args': {'params': params,
-             				'merge_ids': self.__get_merge_ids(parent)},
-             				'task_tag': [self.tag, 'merge_layer']}
+             				'merge_ids': self.__get_merge_ids(parent, conditional_mapping, split)},
+             				'task_tag': [self.tag, split, 'merge_layer']},
+
+             'merge_metrics': 
+             				{'operator': merge_metrics_operation, 
+             				'args': {'params': params,
+             				'merge_ids': self.__get_merge_ids(parent, conditional_mapping, split),
+             				'model': conditional_mapping},
+             				'task_tag': [self.tag, split, conditional_mapping, 'merge_metrics']}
 		}
 
 		#Must be converted to a list to be iterated on later
@@ -698,8 +841,10 @@ class DagLayer:
 
 
 			new_op = DagOperator(task_id,
-											   final_operator,
-											   copy.deepcopy(params))
+							   final_operator,
+							   copy.deepcopy(params))
+
+			#Add new operator to detail list
 			op_detail_list.append(new_op)
 
 
@@ -709,7 +854,30 @@ class DagLayer:
 		#Return op_detail_list
 		return op_detail_list
 
-	
+	def __write_sublayer_associations(self, sublayer_order):
+		"""
+		Private method that, given a sublayer order, parses through
+		the layer to determine sublayer associations
+
+		Args:
+			sublayer_order:						List of sublayers, in order
+
+		"""
+
+		#Template for generating connected layer
+		connected_layer = "\n{}"
+
+
+		#Add layers to the final dag.
+		#TODO: This will need to be changed to fix Airflow dependency issues
+		for sublayer_index in range(len(sublayer_order) - 1):
+			self.dag.layers += connected_layer\
+									.format(" >> "\
+										.join([sublayer_order[sublayer_index]\
+															.refs['head'],
+											   sublayer_order[sublayer_index + 1]\
+											   				.refs['tail']])\
+																.replace("'", ""))
 
 #####################################################################################
 # Private Validation Methods
@@ -727,6 +895,9 @@ class DagLayer:
 			task_id:				Unique Task ID name
 		'''
 
+		#Trim out tag info if there is null data
+		tag_info = [tag for tag in tag_info if tag is not None]
+
 		#Join tag data
 		task_id = "_".join(tag_info)
 
@@ -737,8 +908,8 @@ class DagLayer:
 		#defined in the dag
 		if task_id in self.dag.tasks:
 			raise AttributeError("Task with the same name (task_id = {})\
-							 has already been created. Check your inputs")\
-								.format(task_id)
+							 has already been created. Check your inputs"\
+								.format(task_id))
 		
 		#Add the task ID to the dag
 		self.dag.tasks.add(task_id)
@@ -747,7 +918,7 @@ class DagLayer:
 		return task_id
 
 
-	def __create_family_id(self, family, conditional_mapping = None):
+	def __create_family_id(self, family, split = None, conditional_mapping = None):
 		'''
 		Create a family id and then check to ensure that it is not a duplicate
 		from somewhere else.
@@ -772,6 +943,8 @@ class DagLayer:
 		if conditional_mapping is not None:
 			family_id = conditional_mapping + "_" + family_id
 
+		if split is not None:
+			family_id = split + "_" + family_id
 
 		#Check to ensure that the specific family_id is not taken
 		if family_id in self.family_ids:
@@ -806,7 +979,7 @@ class DagLayer:
 		#Return model object, unchanged
 		return model
 
-	def __get_merge_ids(self, parent):
+	def __get_merge_ids(self, parent, conditional_mapping = None, split = None):
 		'''
 		EXPERIMENTAL: May be a good way to 
 		generate all of the tasks for evaluation of 
@@ -820,12 +993,24 @@ class DagLayer:
 			model:					Model object, unchanged
 		'''
 
-		#Set model to false until it has been evaluated
-		if parent == 'merge_layer':
-			return self.sublayers[self.merge_head].head
+		split_str = ""
+		if split is not None:
+			split_str = split 
 
-		#Return model object, unchanged
-		return []
+		if parent in ['merge_layer', 'merge_metrics']:
+			if conditional_mapping is not None and split is not None:
+				return self.sublayers['core' + split_str][conditional_mapping].head
+
+			elif conditional_mapping:
+				return self.sublayers['core' + split_str][conditional_mapping].head
+
+			elif split is not None:
+				return self.sublayers['core' + split_str].head
+
+			else:
+				return self.sublayers[self.merge_head].head
+
+
 
 
 	
