@@ -546,7 +546,6 @@ class DagLayer:
 		'''
 
 		#Initialize parameter, inheritance, family operation, and count vars
-		params = {}
 		count = 0
 		inherits = False
 		family_ops = []
@@ -556,6 +555,9 @@ class DagLayer:
 
 		#For operation in operator dictionary (all within one family)
 		for op in operator_dict.keys():
+
+			#Initialize params
+			params = {}
 
 			#Overwrite params var if input is not None
 			if operator_dict[op] != None:

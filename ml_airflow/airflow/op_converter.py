@@ -61,7 +61,7 @@ def merge_data_operation(params, dag, context, **kwargs):
 	persist_cols = []
 
 	for task_id in params['merge_ids']:
-		task_data = ti.xcom_pull(task_ids = task_id)
+		task_data = ti.xcom_pull(task_ids = task_id, key = 'return_value')
 
 		if isinstance(task_data, pd.DataFrame):
 			persist_cols += list(task_data.columns)
@@ -87,13 +87,22 @@ def bulk_data_operation(params, dag, **kwargs):
 
 	if params['split'] == 'train':
 		data = params['func'](data, **params['params'])
+		artifact = None
+		if isinstance(data, tuple):
+			artifact = data[1]
+			data = data[0]
+			
+		
+		ti.xcom_push(key = 'artifact', value = artifact)
+
 
 	elif params['split'] == 'test':
-		train_artifacts = ti.xcom_pull(key = 'artifact', task_id = kwargs['task']\
-																.task_id\
-																.replace('test','train'))
+		train_artifacts = ti.xcom_pull(key = 'artifact', 
+									task_ids = kwargs['task']\
+												.task_id\
+												.replace('test','train'))
 		return params['func'](data, 
-								**train_artifacts, 
+								prefit = train_artifacts, 
 								**params['params'])
 
 	else:
@@ -113,17 +122,25 @@ def col_data_operation(params, dag, **kwargs):
 		data = ti.xcom_pull(key = params['split'])
 		data = data.loc[:, params['column_data_id']]
 	else:
-		data = ti.xcom_pull(task_ids = params['column_data_id']) 
+		data = ti.xcom_pull(task_ids = params['column_data_id'], 
+								 key = 'return_value') 
 
 	if params['split'] == 'train':
-		return params['func'](data, **params['params'])
+		res =  params['func'](data, **params['params'])
+		artifact = None
+		if isinstance(res, tuple):
+			artifact = res[1]
+			res = res[0]
+			
+		ti.xcom_push(key = 'artifact', value = artifact)
+		return res
 
 	elif params['split'] == 'test':
-		train_artifacts = ti.xcom_pull(key = 'artifact', task_id = kwargs['task']\
+		train_artifacts = ti.xcom_pull(key = 'artifact', task_ids = kwargs['task']\
 																.task_id\
 																.replace('test','train'))
 		return params['func'](data, 
-								**train_artifacts, 
+								prefit = train_artifacts, 
 								**params['params'])
 
 	else:
@@ -186,8 +203,10 @@ def model_split_operation(params, dag, **kwargs):
 	test = ti.xcom_pull(key = 'test')
 	target = ti.xcom_pull(key = 'target')
 
-	X_train = train.loc[,train.columns != target]
-	X_train = train.loc[,train.columns != target]
+	X_train = train.loc[:,train.columns != target]
+	y_train = train.loc[:,target]
+	X_test = test.loc[:,test.columns != target]
+	y_test = test.loc[:,target]
 
 	ti.xcom_push(key = 'X_train', value = X_train)
 	ti.xcom_push(key = 'y_train', value = y_train)

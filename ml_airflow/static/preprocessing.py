@@ -21,22 +21,53 @@ from scipy.stats.mstats import winsorize
 # Class and Constructor
 #####################################################################################
 
-def mla_impute(data, method = "median"):
+def mla_impute(data, method = "median", prefit = None):
 
-    nulls = data.isnull().sum()
-    null_names = nulls[nulls > 0].index.tolist()
+	fill_na_vals = None
+	if prefit:
+		fill_na_vals = prefit['fill_na_vals']
 
-    for name in null_names:
-        if method == "median":
-            data[name].fillna(data[name].median(), inplace = True)
+	else:
+		if method == 'median':
+			fill_na_vals = data.median()
+		elif method == 'mean':
+			fill_na_vals = data.mean()
 
-    return data
+	data = data.fillna(fill_na_vals)
 
-def mla_winsorize(data, col_names, limits = [0.05, 0.05]):
-    for column in col_names:
-        data[column] = winsorize(data[column], limits = limits)
-    
-    return data
+	if prefit:
+		return data
+	else:
+		return data, {'fill_na_vals': fill_na_vals}
+
+def mla_winsorize(data, limits = [0.05, 0.05], prefit = None):
+
+	feature = data
+
+	lower = None
+	upper = None
+
+	if prefit:
+		lower = prefit['lower']
+		upper = prefit['upper']
+
+	else:
+		lower = feature.quantile(limits[0])
+		upper = feature.quantile(1 - limits[1])
+
+	#Winsorize
+	feature[feature > upper] = upper
+	feature[feature < lower] = lower
+
+	if prefit:
+		return feature
+
+	return feature, {'upper': upper, 'lower': lower}
+
+
+
+
+
 
 
 
