@@ -114,7 +114,7 @@ class DagLayer:
 
 	
 
-	def holistic_layer_parsing(self, conditional_mapping = None, split = None):
+	def holistic_layer_parsing(self, order = 'post', conditional_mapping = None, split = None):
 		'''
 		Holistic layer parsing involves operations that
 		are not specified by the user but must be created in order
@@ -127,14 +127,17 @@ class DagLayer:
 		'''
 
 		#Determine if holistic parsing needs to be run for a layer
+		if self.op_router is None:
+			self.__prime_operator('init', 
+									'init', 
+									'init',
+									'init', 
+									'init')
 		holistic = self.op_router[self.parent].get('holistic', None)
-		if holistic is None:
+		if holistic is None or holistic.get(order, None) is None:
 			return
 
-		if split == None:
-			split = ""
-		else:
-			split = "_" + split
+		holistic = holistic[order]
 
 		#For each operation in the holistic dictionary found in the op_router
 		for op in holistic:
@@ -148,7 +151,7 @@ class DagLayer:
 					if self.conditional_mapping:
 					#Parse the string task family provided by the holistic operation
 
-						for cond_mapping in self.sublayers['core' + split].keys():
+						for cond_mapping in self.sublayers["_".join(['core',split])].keys():
 							self.__parse_string_task_family(op, 
 															op, 
 															holistic[op], 
@@ -443,18 +446,29 @@ class DagLayer:
 
 			for split_section in self.split:
 
+				
+
+				#General parsing rules for specified layer
+				self.holistic_layer_parsing(order = "pre", split = split_section)
+				
+				#Parse the conditionality of the layer
 				self.holistic_order += 1
 				self.__parse_layer_conditionality(split = split_section)
 
 				#General parsing rules for specified layer
-				self.holistic_layer_parsing(split = split_section)
+				self.holistic_layer_parsing(order = "post", split = split_section)
 
 		else:
+			
+			#General parsing rules for specified layer
+			self.holistic_layer_parsing(order = "pre")
+
+			#Parse layer conditionality
 			self.holistic_order += 1
 			self.__parse_layer_conditionality()
 
 			#General parsing rules for specified layer
-			self.holistic_layer_parsing()
+			self.holistic_layer_parsing(order = "post")
 
 	def __parse_layer_conditionality(self, split = None):
 
@@ -741,6 +755,7 @@ class DagLayer:
              'preprocessing': 
              				{'operator':bulk_data_operation, 
              				'args': {'func': op,
+             						'split': split,
              						'params': params},
              				'task_tag':[family, split, op_name]},
              'evaluation': 
@@ -749,8 +764,10 @@ class DagLayer:
              						 'params': params,
              						 #Figure out model id generation for eval tasks
              						 'model_id': conditional_mapping},
-             				'holistic': {'merge_metrics': #Parent
-             								{'merge_metrics': {}}},
+             				'holistic': {
+             							"post":
+             								{'merge_metrics': #Parent
+             								{'merge_metrics': {}}}},
              				'task_tag': [conditional_mapping, family]},
              # Will wait to do any EDA design patterns
              # 'eda': 
@@ -765,6 +782,9 @@ class DagLayer:
              				#Registers model for evaluation functions later
              				'args': {'model': op, 
              						'params': params},
+             				'holistic': {'pre':
+             								{'model_data_split':
+             									{'model_data_split': {}}}},
              				'arg_xcom_update': ['model'],
              				'task_tag':[family]},
 
@@ -773,10 +793,12 @@ class DagLayer:
              				{'operator': col_data_operation, 
              				'args': {'func': op,
              						 'params': params,
+             						 'split': split,
              						 'inherits': inherits,
              						 'column_data_id': family_upstream_task},
-             				'holistic': {'merge_layer': #Parent
-             								{'merge_cols': {}}},
+             				'holistic': {"post":
+             								{'merge_layer': #Parent
+             								{'merge_cols': {}}}},
              				'task_tag': [family, split, op_name]},
 
              #HOLISTIC LAYER OPERATIONS START HERE
@@ -791,8 +813,17 @@ class DagLayer:
              				'args': {'params': params,
              				'merge_ids': self.__get_merge_ids(parent, conditional_mapping, split),
              				'model': conditional_mapping},
-             				'task_tag': [self.tag, split, conditional_mapping, 'merge_metrics']}
+             				'task_tag': [self.tag, split, conditional_mapping, 'merge_metrics']},
+
+             'model_data_split': 
+             				{'operator': model_split_operation, 
+             				'args': {'params': params},
+             				'task_tag': ['model_data_split']}
 		}
+
+		#Returns if it is just init
+		if parent == 'init':
+			return
 
 		#Must be converted to a list to be iterated on later
 		python_callables = self.op_router[parent]['operator']
@@ -940,10 +971,12 @@ class DagLayer:
 		#Generate family id
 		family_id = "_".join([self.tag, family])
 
+		#Add conditional mapping information, if necessary
 		if conditional_mapping is not None:
 			family_id = conditional_mapping + "_" + family_id
 
-		if split is not None:
+		#Add split information, if necessary
+		if split not in [None, ""]:
 			family_id = split + "_" + family_id
 
 		#Check to ensure that the specific family_id is not taken
@@ -995,7 +1028,7 @@ class DagLayer:
 
 		split_str = ""
 		if split is not None:
-			split_str = split 
+			split_str = "_" + split
 
 		if parent in ['merge_layer', 'merge_metrics']:
 			if conditional_mapping is not None and split is not None:
