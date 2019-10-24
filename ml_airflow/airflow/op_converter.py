@@ -41,7 +41,7 @@ def evaluation_operation(params, dag, **kwargs):
 
 	return params['func'](y_test, preds, **params['params'])
 
-def merge_metrics_operation(params, dag, context, **kwargs):
+def merge_metrics_operation(params, dag, **kwargs):
 
 	ti = kwargs['ti']
 
