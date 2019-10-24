@@ -224,9 +224,3 @@ def k_fold_operation(func, params, dag, **kwargs):
 def void_operation(func, params, dag, **kwargs):
 
 	return func(data, **params)
-
-def _is_fitted(model):
-    """Checks if model object has any attributes ending with an underscore"""
-    return 0 < len( [k for k,v in inspect.getmembers(model) 
-    				if k.endswith('_') 
-    				and not k.startswith('__')] )

@@ -1,7 +1,7 @@
 #####################################################################################
 #
 #
-# 	Airflow DAG Generated Experiment: {} 
+# 	Airbender Generated DAG Experiment: {} 
 #  
 #	Author: {} 
 #	Date: {}
@@ -19,7 +19,7 @@ import sys
 
 #Delete this once package matures
 #For now, change to your own path
-sys.path.append(os.path.abspath(os.path.join(__file__, "../../../repos/ML_Airflow/")))
+sys.path.append(os.path.abspath(os.path.join(__file__, "../../../repos/airbender/")))
 
 
 # Airflow DAG

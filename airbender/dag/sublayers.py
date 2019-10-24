@@ -13,7 +13,7 @@
 # External Library and Module Imports
 #####################################################################################
 
-from ml_airflow.dag.op_families import OpFamily
+from airbender.dag.op_families import OpFamily
 
 import pprint
 

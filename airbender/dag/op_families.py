@@ -8,7 +8,7 @@
 #
 #####################################################################################
 
-from ml_airflow.dag.operators import DagOperator
+from airbender.dag.operators import DagOperator
 
 #####################################################################################
 # External Library and Module Imports

@@ -30,7 +30,7 @@ from collections import OrderedDict
 
 # DAG information package specific information
 sys.path.append("../../")
-from ml_airflow.dag.layers import DagLayer
+from airbender.dag.layers import DagLayer
 
 
 #####################################################################################

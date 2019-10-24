@@ -29,12 +29,12 @@ import inspect
 
 # Import package specific information
 sys.path.append("../../")
-from ml_airflow.airflow.op_converter import *
+from airbender.airflow.op_converter import *
 
 #Import SubLayer object
-from ml_airflow.dag.sublayers import DagSubLayer
-from ml_airflow.dag.op_families import OpFamily 
-from ml_airflow.dag.operators import DagOperator
+from airbender.dag.sublayers import DagSubLayer
+from airbender.dag.op_families import OpFamily 
+from airbender.dag.operators import DagOperator
 
 #####################################################################################
 # Class and Constructor
@@ -127,25 +127,21 @@ class DagLayer:
 		'''
 
 		#Determine if holistic parsing needs to be run for a layer
-		if self.op_router is None:
-			self.__prime_operator('init', 
-									'init', 
-									'init',
-									'init', 
-									'init')
+		self.__route()
 		holistic = self.op_router[self.parent].get('holistic', None)
 		if holistic is None or holistic.get(order, None) is None:
 			return
 
-		holistic = holistic[order]
+		
 
 		#For each operation in the holistic dictionary found in the op_router
+		holistic = holistic[order]
 		for op in holistic:
 
 			#Increment holistic order
 			self.holistic_order += 1
 
-
+			#If it is split
 			if split:
 
 					if self.conditional_mapping:
@@ -447,7 +443,6 @@ class DagLayer:
 			for split_section in self.split:
 
 				
-
 				#General parsing rules for specified layer
 				self.holistic_layer_parsing(order = "pre", split = split_section)
 				
@@ -698,44 +693,15 @@ class DagLayer:
 									conditional_mapping,
 									split)
 
-
-	def __prime_operator(self, 
-						parent, 
-						family, 
-						family_upstream_task,
-						op, 
-						params,
+	def __route(self, parent = 'init', 
+						family = 'init', 
+						family_upstream_task = 'init',
+						op = 'init', 
+						params = 'init',
 						inherits = False,
 						conditional_mapping = None,
 						split = None):
-		'''
-		One of the most import functions for the layer. This
-		process takes general configuration input and
-		re-organizes it based on the parent concept that the
-		layer belongs to. It accommodates dynamic parameter
-		switching to take input from upstream tasks, generates
-		the appropriate task tags, and also accommodates 
-		holistic, triggered parsing options.
-
-		Args:
-			parent:							Parent concept. Usually self.parent, but can be replaced by holistic parsing.
-			family:							Task family. Logical chain of tasks acting on a specific target.
-			family_upstream_task:			Upstream task id from same family that may be used to replace params.
-			op:								Operator function acting on the specified data (delineated by family). 
-											This will be wrapped in a shell function
-			params:							Parameters to provide for specific function.
-
-		Kwargs:
-			inherits:						Default = False. Determines if task will inherit upstream params.
-
-		Sub_Functions:
-			__create_task_id:				Generate and validate task id for an operator
-			__parse_parameters:				Parse operator parameters
-
-		Returns:
-			op_detail_list:					List of operators (tasks) and their details for execution
-
-		'''
+		
 		#Holistic or custom operators may come in as strings
 		op_name = op.__name__ if self.dag.is_callable(op) else op
 
@@ -824,9 +790,50 @@ class DagLayer:
              				'task_tag': ['model_data_split']}
 		}
 
-		#Returns if it is just init
-		if parent == 'init':
-			return
+
+	def __prime_operator(self, 
+						parent, 
+						family, 
+						family_upstream_task,
+						op, 
+						params,
+						inherits = False,
+						conditional_mapping = None,
+						split = None):
+		'''
+		One of the most import functions for the layer. This
+		process takes general configuration input and
+		re-organizes it based on the parent concept that the
+		layer belongs to. It accommodates dynamic parameter
+		switching to take input from upstream tasks, generates
+		the appropriate task tags, and also accommodates 
+		holistic, triggered parsing options.
+
+		Args:
+			parent:							Parent concept. Usually self.parent, but can be replaced by holistic parsing.
+			family:							Task family. Logical chain of tasks acting on a specific target.
+			family_upstream_task:			Upstream task id from same family that may be used to replace params.
+			op:								Operator function acting on the specified data (delineated by family). 
+											This will be wrapped in a shell function
+			params:							Parameters to provide for specific function.
+
+		Kwargs:
+			inherits:						Default = False. Determines if task will inherit upstream params.
+
+		Sub_Functions:
+			__create_task_id:				Generate and validate task id for an operator
+			__parse_parameters:				Parse operator parameters
+
+		Returns:
+			op_detail_list:					List of operators (tasks) and their details for execution
+
+		'''
+		#Route all local vars except reference to self
+		info = locals()
+		info.pop('self')
+
+		#Route operation
+		self.__route(**info)
 
 		#Must be converted to a list to be iterated on later
 		python_callables = self.op_router[parent]['operator']
@@ -1033,7 +1040,7 @@ class DagLayer:
 		if split is not None:
 			split_str = "_" + split
 
-		if parent in ['merge_layer', 'merge_metrics']:
+		if 'merge' in parent:
 			if conditional_mapping is not None and split is not None:
 				return self.sublayers['core' + split_str][conditional_mapping].head
 
