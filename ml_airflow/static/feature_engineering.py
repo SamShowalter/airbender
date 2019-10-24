@@ -25,6 +25,7 @@ def normalize_values(data, prefit = None):
     std = None
 
     if not isinstance(data, pd.Series):
+        print(type(data))
         raise ValueError("Input data has more than one column")
 
     if prefit:
@@ -46,7 +47,7 @@ def normalize_values(data, prefit = None):
         prefit = {'mean': mean, 'std': std}
         return data, prefit
 
-def mla_get_dummies(data, prefit = None):
+def mla_get_dummies(data):
 
     dummy_df = pd.get_dummies(data)
 
@@ -55,18 +56,15 @@ def mla_get_dummies(data, prefit = None):
 def mla_linear_transformation(data, method, prefit = None):
 
     if prefit:
-        res, _ = method(data, prefit['lambda_c'])
-        pd.Series(res, name = data.name)
+        res = method(data, lmbda = prefit['lambda_c'])
+        return pd.Series(res, name = data.name)
 
     else:
         res, lambda_c = method(data)
-        return pd.Series(res, name = data.name), {'lambda_c'}
+        return pd.Series(res, name = data.name), {'lambda_c': lambda_c}
 
     
-
-
-
-def create_boolean_df(data, boolean_names_and_values, prefit = None):
+def create_boolean_df(data, boolean_names_and_values):
 
     boolean_df = data
 
@@ -82,14 +80,12 @@ def create_boolean_df(data, boolean_names_and_values, prefit = None):
 
     boolean_df.name = boolean_df.name
 
-
     return boolean_df
 
-def create_ordinal_df(data, ordinal_dict, prefit = None):
+def create_ordinal_df(data, ordinal_dict):
     
     ordinal_df = data
         
-
     #Make new ordinal column (suffix = "ord") by replacing values with ordinal dictionary
     ordinal_df = ordinal_df.replace(ordinal_dict, inplace = False)
 

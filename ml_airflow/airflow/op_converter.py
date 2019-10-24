@@ -53,7 +53,7 @@ def merge_metrics_operation(params, dag, context, **kwargs):
 		
 	return metrics_dict
 
-def merge_data_operation(params, dag, context, **kwargs):
+def merge_data_operation(params, dag, **kwargs):
 
 	ti = kwargs['ti']
 	data = ti.xcom_pull(key = params['split'])
@@ -67,13 +67,9 @@ def merge_data_operation(params, dag, context, **kwargs):
 			persist_cols += list(task_data.columns)
 			data = pd.concat([data, task_data], axis = 1)
 		elif isinstance(task_data, pd.Series):
+
 			persist_cols.append(task_data.name)
-			data[task_data.name] = task_data
-
-
-	print()
-	print(data.isnull().sum())
-	print()
+			data[task_data.name] = task_data.values
 
 	#Only persist mentioned
 	data = data.loc[:,persist_cols]
@@ -94,6 +90,7 @@ def bulk_data_operation(params, dag, **kwargs):
 			
 		
 		ti.xcom_push(key = 'artifact', value = artifact)
+		ti.xcom_push(key = params['split'], value = data)
 
 
 	elif params['split'] == 'test':
@@ -101,15 +98,19 @@ def bulk_data_operation(params, dag, **kwargs):
 									task_ids = kwargs['task']\
 												.task_id\
 												.replace('test','train'))
-		return params['func'](data, 
-								prefit = train_artifacts, 
-								**params['params'])
+		if train_artifacts:
+			ti.xcom_push(key = params['split'],
+						 value = params['func'](data, 
+									prefit = train_artifacts, 
+									**params['params']))
+		else:
+			ti.xcom_push(key = params['split'], 
+							value = params['func'](data,
+								**params['params']))
 
 	else:
 		raise ValueError("Invalid data source: {}. Check your inputs".format(params['split']))
 	
-	#Push the data out using specific key
-	ti.xcom_push(key = params['split'], value = data)
 
 
 def col_data_operation(params, dag, **kwargs):
@@ -139,9 +140,13 @@ def col_data_operation(params, dag, **kwargs):
 		train_artifacts = ti.xcom_pull(key = 'artifact', task_ids = kwargs['task']\
 																.task_id\
 																.replace('test','train'))
-		return params['func'](data, 
-								prefit = train_artifacts, 
-								**params['params'])
+		if train_artifacts:
+			return params['func'](data, 
+									prefit = train_artifacts, 
+									**params['params'])
+		else:
+			return params['func'](data, 
+									**params['params'])
 
 	else:
 		raise ValueError("Invalid data source: {}. Check your inputs".format(params['split']))

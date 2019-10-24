@@ -807,7 +807,8 @@ class DagLayer:
              'merge_layer': 
              				{'operator': merge_data_operation, 
              				'args': {'params': params,
-             				'merge_ids': self.__get_merge_ids(parent, conditional_mapping, split)},
+             				'merge_ids': self.__get_merge_ids(parent, conditional_mapping, split),
+             				'split': split},
              				'task_tag': [self.tag, split, 'merge_layer']},
 
              'merge_metrics': 

@@ -61,7 +61,7 @@ def mla_winsorize(data, limits = [0.05, 0.05], prefit = None):
 
 	if prefit:
 		return feature
-
+		
 	return feature, {'upper': upper, 'lower': lower}
 
 
