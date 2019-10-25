@@ -11,7 +11,7 @@
     <img src = "https://img.shields.io/badge/Maintained-yes-00CC33.svg" 
          alt = "Maintained" />
 <!-- Build Status -->
-    <img src = "https://img.shields.io/badge/Build-failing-00CC33.svg" 
+    <img src = "https://img.shields.io/badge/Build-failing-FF0000.svg" 
          alt = "Build Status" />   
 <!-- Development Status -->
     <img src = "https://img.shields.io/badge/Development-in%20progress-FF9933.svg" 
