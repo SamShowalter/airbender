@@ -28,7 +28,7 @@
 </div> 
 <br />
 
-Airbender allows developers to run nuanced machine learning experiments with Apache Airflow by dynamically generating a code file implementing an unbiased, efficient experiment based on a simple configuration. This allows Software Engineers and Data Scientists to have more time to think about their modeling insights, as all metrics and artifacts are tracked in Airflow and can be analyzed through its User Interface. Jump down `Examples` for more information!
+Airbender allows developers to run nuanced machine learning experiments with Apache Airflow by dynamically generating a code file implementing an unbiased, efficient experiment based on a simple configuration. This allows Software Engineers and Data Scientists to have more time to think about their modeling insights, as all metrics and artifacts are tracked in Airflow and can be analyzed through its User Interface. Jump down to `Examples` for more information!
 
 
 # Contents
@@ -36,7 +36,7 @@ Airbender allows developers to run nuanced machine learning experiments with Apa
 - [Dependencies](#deps)
 - [Installation](#install)
 - [Features](#features)
-- [Example](#example)
+- [Examples](#example)
 - [Documentation](#docs)
 - [FAQs](#faq)
 - [Contribute](#contribute)
@@ -112,5 +112,3 @@ No. Because Airflow has its own scheduler and keeps meticulous logging of the ex
 ## Contribute
 
 We would love for you to contribute to Airbender! Please refer to our [contribution guidelines](https://github.com/SamShowalter/airbender/blob/master/CONTRIBUTING.md) for more information.
-
-
