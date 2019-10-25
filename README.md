@@ -19,12 +19,12 @@
 <!-- Stability -->
     <img src = "https://img.shields.io/badge/Stability-experimental-FF9933.svg" 
          alt = "Stability" />
-</div>
+</div>0
 
 <div align="center">
-	<sub>Built with :heart: by 
-		<a href = "https://samshowalter.github.io"> Samuel Showalter</a>
-	</sub>
+    <sub>Built with :heart: by 
+        <a href = "https://samshowalter.github.io"> Samuel Showalter</a>
+    </sub>
 </div> 
 <br />
 
@@ -36,6 +36,8 @@ Airbender allows developers to run nuanced machine learning experiments with Apa
 - [Dependencies](#deps)
 - [Installation](#install)
 - [Features](#features)
+    - [Airbender Configuration](#air_config)
+    - [Adding Code Functionality](#code_functionality)
 - [Examples](#example)
 - [Documentation](#docs)
 - [FAQs](#faq)
@@ -73,7 +75,39 @@ pip install airbender[apache-airflow]
 <a name = "features"></a>
 ## Features
 
-Airbender is configuration driven. While there are many different types of models and solutions that you can create, all of them share high-level conceptual
+<a name = "air_config"></a>
+### Airbender Configurations
+Airbender is configuration driven. While there are many different types of models and solutions that you can create, most of them share a high-level conceptual structure. The components of that structure are outlined below.
+1. **`data_sources`** -- Integrating all data sources into a flat dataset
+2. **`eda`** -- Exploratory Data Analysis 
+3. **`splitting`** -- Splitting data (K-fold, train_test_split, etc.)
+4. **`preprocessing`** -- Preprocessing data (outlier removal, imputation, etc.)
+5. **`feature_engineering`** -- Feature Engineering (standardization, one-hot encoding, etc.)
+6. **`modeling`** -- Training different statistical models and generating predictions for test/validation datasets
+7. **`evaluation`** -- Compare the performance of different models across different success criteria
+
+The names in bold above for each step represent the tag you must provide to the configuration you send to Airbender's `DagGenerator`. You do not have to include all of these steps (sometimes EDA may already be finished, or preprocessing is not needed) and within each step you have an immense amount of flexibility, but they keys of your JSON-style configuration must have of of the names listed above. A good template is shown below for this.
+
+```{python}
+airbender_config = {
+                    "data_sources": None,
+                    "eda":None,
+                    "splitting": None,
+                    "preprocessing": None,
+                    "feature_engineering: None,
+                    "modeling":None,
+                    "evaluation":None
+                   }
+
+```
+<a name = "code_functionality"></a>
+### Adding Code Functionality
+
+In Airbender, all functionality must have three components, a **`tag`**, **`callable`**, and **`parameters`**. The `callable` is an uninstantiated object or function, and the `parameters` provides some or all of the inputs for the callable. However, at times the `callable` also takes the `tag` as an input. Outlined below are some examples of what the tag variable can be.
+1. A succint name describing the operation:   `{"LOG": {RandomForestClassifier: {"n_estimators": 10}}}`
+    a. Note here that the `tag` is **`"LOG"`**, the callable is **`RandomForestClassifier`**, and the **parameters** are **`{"n_estimators": 10}`**. 
+    b. Also note that these three elements are associated with python dictionaries in key value pairs. 
+        i. Here, **`"LOG"`** --> **`RandomForestClassifier`** --> **`{"n_estimators": 10}`**
 
 <a name = "example"></a>
 ## Examples
