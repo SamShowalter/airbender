@@ -20,7 +20,7 @@ from sklearn.model_selection import KFold
 # Class and Constructor
 #####################################################################################
 
-def mla_train_test_split(data, target, test_ratio, random_state = 42):
+def train_test_split(data, target, test_ratio, random_state = 42):
 
 
 	train, test = train_test_split(data, 
@@ -29,7 +29,7 @@ def mla_train_test_split(data, target, test_ratio, random_state = 42):
 
 	return train, test, target
 
-def mla_k_fold(data, target, k, random_state = 42, shuffle = True):
+def k_fold(data, target, k, random_state = 42, shuffle = True):
 
 	kf = KFold(n_splits = k, random_state = random_state, shuffle = shuffle)
 	folds = {}

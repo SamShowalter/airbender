@@ -47,13 +47,7 @@ def normalize_values(data, prefit = None):
         prefit = {'mean': mean, 'std': std}
         return data, prefit
 
-def mla_get_dummies(data):
-
-    dummy_df = pd.get_dummies(data)
-
-    return dummy_df
-
-def mla_linear_transformation(data, method, prefit = None):
+def linear_transformation(data, method, prefit = None):
 
     if prefit:
         res = method(data, lmbda = prefit['lambda_c'])

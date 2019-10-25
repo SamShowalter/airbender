@@ -21,7 +21,7 @@ from scipy.stats.mstats import winsorize
 # Class and Constructor
 #####################################################################################
 
-def mla_impute(data, method = "median", prefit = None):
+def impute(data, method = "median", prefit = None):
 
 	fill_na_vals = None
 	if prefit:
@@ -40,7 +40,7 @@ def mla_impute(data, method = "median", prefit = None):
 	else:
 		return data, {'fill_na_vals': fill_na_vals}
 
-def mla_winsorize(data, limits = [0.05, 0.05], prefit = None):
+def winsorize(data, limits = [0.05, 0.05], prefit = None):
 
 	feature = data
 
