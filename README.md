@@ -104,11 +104,15 @@ airbender_config = {
 ### Adding Code Functionality
 
 In Airbender, all functionality must have three components, a **`tag`**, **`callable`**, and **`parameters`**. The `callable` is an uninstantiated object or function, and the `parameters` provides some or all of the inputs for the callable. However, at times the `callable` also takes the `tag` as an input. Outlined below are some examples of what the tag variable can be.
-1. A succint name describing the operation:   `{"LOG": {RandomForestClassifier: {"n_estimators": 10}}}`
-    a. Note here that the `tag` is **`"LOG"`**, the callable is **`RandomForestClassifier`**, and the **parameters** are **`{"n_estimators": 10}`**. 
-    b. Also note that these three elements are associated with python dictionaries in key value pairs. 
-        i. Here, **`"LOG"`** --> **`RandomForestClassifier`** --> **`{"n_estimators": 10}`**
+1. **A succint name describing the operation**:   `{"LOG": {RandomForestClassifier: {"n_estimators": 10}}}`
+    1. Note here that the tag is **`"LOG"`**, the callable is **`RandomForestClassifier`**, and the parameters are **`{"n_estimators": 10}`**. 
+    2. Also note that these three elements are associated with python dictionaries in key value pairs. 
+        1. Here, **`"LOG"`** :arrow_forward: **`RandomForestClassifier`** :arrow_forward: **`{"n_estimators": 10}`**
+       
 
+2. **A target column name for data operation**: `{"Sepal_Length": {impute: {"method": "median"}}}`
+    1. In this case, the tag is a reference to a data column and is passed to the callable. You can have these types of tags in the `preprocessing` and `feature_engineering` sub-configurations.
+ 
 <a name = "example"></a>
 ## Examples
 
