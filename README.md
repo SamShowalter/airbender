@@ -37,7 +37,7 @@ Airbender allows developers to run nuanced machine learning experiments with Apa
 - [Features](#features)
     - [Airbender Configuration](#air_config)
     - [Adding Code Functionality](#code_functionality)
-    - [Opoerator Families and Sequencing](#op_families)
+    - [Operator Families and Sequencing](#op_families)
     - [DAG Layers](#dag_layers)
     - [Conceptual vs. Physical DAG Layers](#conc_phys_dag_layer)
     - [Execution Order](#exec_order)
@@ -102,7 +102,7 @@ Airbender is configuration driven. While there are many different types of model
 6. **`modeling`** -- Training different statistical models and generating predictions for test/validation datasets
 7. **`evaluation`** -- Compare the performance of different models across different success criteria
 
-The names in bold above for each step represent the tag you must provide to the configuration you send to Airbender's `DagGenerator`. You do not have to include all of these steps (sometimes EDA may already be finished, or preprocessing is not needed) and within each step you have an immense amount of flexibility, but they keys of your JSON-style configuration must have of of the names listed above. A good template is shown below for this, just replace the `None` variable with your configuration for each step. 
+The names in bold above for each step represent the tag you must provide to the configuration you send to Airbender's `DagGenerator`. You do not have to include all of these steps (sometimes EDA may already be finished, or preprocessing is not needed) and within each step you have an immense amount of flexibility, but they keys of your JSON-style configuration be a subset of the names listed above. A good template is shown below for this, just replace the `None` variable with your configuration for each step you use and delete the rest.
 
 ```python
 airbender_config = {
