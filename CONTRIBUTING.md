@@ -1,6 +1,6 @@
 # Contributing to Airbender
 
-When contributing to this repository, please first discuss the change you wish to make via issue,
+When contributing to Airbender, please first discuss the change you wish to make via issue,
 email, or any other method with the owners of this repository before making a change. 
 
 Please note we have a code of conduct, please follow it in all your interactions with the project.
@@ -10,7 +10,7 @@ Please note we have a code of conduct, please follow it in all your interactions
 1. Ensure any install or build dependencies are removed before the end of the layer when doing a 
    build.
 2. Update the README.md with details of changes to the interface, this includes new environment 
-   variables, exposed ports, useful file locations and container parameters.
+   variables, useful file locations, and other functionality.
 3. Increase the version numbers in any examples files and the README.md to the new version that this
    Pull Request would represent. The versioning scheme we use is [SemVer](http://semver.org/).
 
@@ -62,7 +62,7 @@ threatening, offensive, or harmful.
 ### Scope
 
 This Code of Conduct applies both within project spaces and in public spaces
-when an individual is representing the project or its community. Examples of
+when an individual is representing Airbender or its community. Examples of
 representing a project or community include using an official project e-mail
 address, posting via an official social media account, or acting as an appointed
 representative at an online or offline event. Representation of a project may be
@@ -71,7 +71,7 @@ further defined and clarified by project maintainers.
 ### Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by contacting the project team at [INSERT EMAIL ADDRESS]. All
+reported by contacting the project team at [samuelrshowalter@gmail.com]. All
 complaints will be reviewed and investigated and will result in a response that
 is deemed necessary and appropriate to the circumstances. The project team is
 obligated to maintain confidentiality with regard to the reporter of an incident.
