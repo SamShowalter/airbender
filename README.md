@@ -265,7 +265,6 @@ _We do not recommend editing the execution configuration._
 
 <a name = "iris_overview"></a>
 ### Example 1: Iris Classification 
-----------------------------------------------
 Now that we have a good understanding of airbender's structure, let's consider an example with the Iris flower dataset. The dataset includes four features, listed below, and three classes we will try to predict. The goal is to build a model that can effectively determine the breed of the flower using only the length and width metrics provided in the feature set. 
 
 **See full code for experiment [here]()**
@@ -288,9 +287,10 @@ Iris plants dataset
         - Versicolour
         - Virginica
 ```
+
+----------------------------------------------
 <a name = "iris_imports"></a>
 #### Imports
-----------------------------------------------
 
 Before we start, let's import Pandas and Airbender's `DagLayer` class so we can validate our configurations.
 
@@ -298,10 +298,10 @@ Before we start, let's import Pandas and Airbender's `DagLayer` class so we can 
 from airbender.dag.layers import DagLayer
 ```
 
-
+----------------------------------------------
 <a name = "iris_rd"></a>
 #### Reading in Data
-----------------------------------------------
+
 
 Since this implementation is small and fairly simple, all we need to do is import a single dataset. Airbender has provided a link to the dataset below. To incorporate data into the experiment, we only need to write the following:
 
@@ -316,18 +316,19 @@ data_sources = {'iris':         #Tag
               }
 ```
 
-
+----------------------------------------------
 <a name = "iris_eda"></a>
 #### Exploratory Data Analysis
-----------------------------------------------
+
 
 While there are methods of incorporating EDA into Airbender, these are not yet supported. Moreover, Airbender primarily functions as an experimentation tool for developers to use _after_ they have done EDA. Its focus is for quickly optimizing feature engineering and modeling with unbiased experiments. 
 
 You can view EDA for the Iris example [here](https://github.com/SamShowalter/airbender/blob/master/tutorials/iris/airbender_iris_tutorial.ipynb)
 
+----------------------------------------------
 <a name = "iris_split"></a>
 #### Splitting Data
-----------------------------------------------
+
 
 One of the largest benefits of Airbender is the control it offers to ensure unbiased experimentation. Right after the data is read into Airbender, it is split into train and test datasets. For every preprocessing and feature_engineering operation, the train dataset is operated on first. If the operation has any artifacts (e.g. median imputation takes the median of the training dataset as its imputation value), those values are passed to the testing dataset operators and applied directly. In this way, the experiment is much more likely to be free of information leak.
 
@@ -350,9 +351,10 @@ splitting = {'split':
             }
 ```
 
+----------------------------------------------
 <a name = "iris_p"></a>
 #### Preprocessing
-----------------------------------------------
+
 
 In this edited dataset, we can see that there are some missing values. The original Iris dataset did not have missing values, but we have added them artificially to better simulate an actual dataset.
 
@@ -373,9 +375,10 @@ preprocessing = {'missing_data':
 
 ```
 
+----------------------------------------------
 <a name = "iris_fe"></a>
 #### Feature Engineering
-----------------------------------------------
+
 
 Feature engineering is the DagLayer where you can apply functions or series of function to specific data columns. You can also pass through columns that are already in a suitable modeling format by simply putting None in place of the operator and parameters dictionary.
 
@@ -403,10 +406,10 @@ feature_engineering = {'col_transformations':
                       }
 ```
 
-
+----------------------------------------------
 <a name = "iris_m"></a>
 #### Modeling
-----------------------------------------------
+
 
 The modeling sublayer currently follows a `fit` and `predict` interface, meaning all `scikit-learn` models and many additional algorithms like `lightgbm` and `xgboost` are compatible. Deep learning models are not yet compatible. Airbender currently only supports supervised algorithms as well. You do not need to instantiate the models you provide. Airbender will do this for you.
 
@@ -428,9 +431,10 @@ modeling = {'modeling':
            }
 ```
 
+----------------------------------------------
 <a name = "iris_e"></a>
 #### Evaluation
-----------------------------------------------
+
 
 Lastly, we need a way to determine which model is best suited to predict on this dataset. Therefore, we will provide our Airbender evaluation DagLayer with performance metrics.
 
@@ -449,9 +453,10 @@ evaluation = {'metrics':
              }
 ```
 
+----------------------------------------------
 <a name = "iris_cc"></a>
 #### Consolidating the Configuration
-----------------------------------------------
+
 
 Now that we have all of the functionality we need to run an experiment with the Iris dataset, we need to consolidate that into a single configuration object. This is typically done with the following structure. Note, you can write these steps in any order, as the conceptual DAG configuration will ensure correct order (e.g. `data_sources` is first, `evaluation` last).
 
@@ -486,9 +491,10 @@ airbender_config = {
 
 All finished! Now we are ready to generate the code for our Airbender DAG.
 
+----------------------------------------------
 <a name = "iris_gen"></a>
 #### Generate the Airbender DAG
-----------------------------------------------
+
 
 Once we have written a valid Airbender configuration, generating the code for the DAG is incredibly simple. All you need to do is give the configuration to Airbender's DAG generator, shown below.
 
@@ -519,10 +525,10 @@ Generated Airbender file with name: Airbender_Iris_Tutorial_airbender_10-28-2019
 
 Now our experiment has been converted into a DAG that is ready to run on Airflow. Note that Airbender intelligently imported all of the functions and classes we used in our configuration into the final file. You can view the file we just generated [here](https://github.com/SamShowalter/airbender/blob/master/tutorials/iris/Airbender_Iris_Tutorial_airbender_10-28-2019--15.26.01.py). 
 
-
+----------------------------------------------
 <a name = "iris_dag"></a>
 #### View and Run DAG in Airflow
-----------------------------------------------
+
 
 At this point, our job is finished. All we need to do is place this file into our airflow dag directory, turn on Airflow's scheduler and webserver, and watch the experiment run. While the experiment is running, you can track the progress of the DAG in real-time by with Airflow's tree or graph view, shown below.
 
@@ -534,9 +540,9 @@ You can also analyze the content, input, output, and metadata of specific tasks 
 **Airbender Task Viewer in Airflow**
 <img src="https://i.ibb.co/4W7sB0z/iris-dag-task.jpg" alt="iris-dag-task" border="0">
 
-
-### Example 2: Employee Attrition
 ----------------------------------------------
+### Example 2: Employee Attrition
+
 
 The Iris classification example is a relatively simple machine learning problem, even with the created data imperfections. For a more involved implementation of Airbender, please see the employee attrition data example, which leverages a synthetic dataset on Employee Attrition created by IBM.
 
