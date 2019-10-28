@@ -136,7 +136,7 @@ In some cases, you may want to conduct several operations on the same data in se
 
 To accommodate this, we build on the `tag`, `callable`, and `parameters` concept we introducted previously to create **operator families**. An operator family that runs through the sequence above for `Sepal_Length` would look like this:
 
-```
+```python
 {
  "Sepal_Length": {
                   remove_outliers: {"threshold": 6},
@@ -157,7 +157,7 @@ When it is necessary, like with column-wise operators in `feature_engineering`, 
 
 DAG Layers will also determine their own head and tail pointers, and therefore can accommodate collections of operator families of varying length. To that end, an important note about writing Airbender configurations in that you must specify which selections of a configuration are DagLayers. To convert our operator family above into a DagLayer, we simply wrap our operator family with the DagLayer object. This will automatically validate your configuration, and if there are errors it will explain in detail what the problem is for easy debugging.
 
-```
+```python
 DagLayer(
     {
      "Sepal_Length": {
@@ -176,7 +176,7 @@ Lastly, there is a difference between a conceptual DAG layer and a physical DAG 
 
 **Configuration 1:** Adding subsections to a conceptual DAG layer
 
-```
+```python
 'feature_engineering':
 
     { 
@@ -191,7 +191,7 @@ Lastly, there is a difference between a conceptual DAG layer and a physical DAG 
 
 **Configuration 2:** Lists of DagLayers
 
-```
+```python
 'feature_engineering':
 
     { 
@@ -206,7 +206,7 @@ Lastly, there is a difference between a conceptual DAG layer and a physical DAG 
 
 **Configuration 3:** Nested, Composite DagLayers
 
-```
+```python
 'feature_engineering':
 
     { 
@@ -233,7 +233,7 @@ Lastly, there is a difference between a conceptual DAG layer and a physical DAG 
 
 While the order of conceptual DAG layers is set by the execution configuration$^1$, physical DagLayer order is taken as-is from within each conceptual layer. Order is determined top-to-bottom and depth first. All nested DagLayers that belong to a single key will be ordered before the DagLayers of the following key. Please see the code and comments below for an example using **configuration 3**.
 
-```
+```python
 'feature_engineering':
 
     { 
@@ -294,7 +294,7 @@ Before we start, let's import Pandas and Airbender's `DagLayer` class so we can 
 
 Since this dataset is small and fairly simple, all we need to do is import the dataset. Airbender has provided a link to the dataset in the `tutorial` folder. To incorporate this into the experiment, we only need to write the following:
 
-```
+```python
 data_sources = {'iris':         #Tag
                     DagLayer(
                                 {'<-PATH TO IRIS DATASET->': {pd.read_csv: 
@@ -322,7 +322,7 @@ Right now, Airbender only accommodates traditional train test splits with a sing
 For our Iris example, we will take a random, 25% slice of the data for our testing set. The configuration is outlined below.
 
 
-```
+```python
 #Import splitting functionality
 from airbender.static.splitting import train_test_split
 
@@ -347,7 +347,7 @@ Feature engineering is the DagLayer where you can apply functions or series of f
 
 In this case, there is very little preprocessing that needs to be done. However, we will still demonstrate the basics of adding operators at a column level, even if it is not necessary for this dataset. 
 
-```
+```python
 #Imports
 from airbender.static.feature_engineering import normalize_values, winsorize
 
@@ -368,12 +368,13 @@ feature_engineering = {'feature_engineering':
 
 <a name = "iris_m"></a>
 #### Modeling
+----------------------------------------------
 
 The modeling sublayer currently follows a `fit` and `predict` interface, meaning all `scikit-learn` models and many additional algorithms like `lightgbm` and `xgboost` are compatible. Deep learning models are not yet compatible. Airbender currently only supports supervised algorithms as well. You do not need to instantiate the models you provide. Airbender will do this for you.
 
 For the Iris dataset, we will examine three models, all from `scikit-learn`: Random Forest, Support Vector Machine, and Logistic Regression. The configuration for this is shown below.
 
-```
+```python
 #Import models from Sklearn
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -391,10 +392,11 @@ modeling = {'modeling':
 
 <a name = "iris_e"></a>
 #### Evaluation
+----------------------------------------------
 
 Lastly, we need a way to determine which model is best suited to predict on this dataset. Therefore, we will provide our Airbender evaluation DagLayer with performance metrics.
 
-```
+```python
 #Import evaluation metrics
 from sklearn.metrics import precision_score, recall_score, accuracy_score, f1_score
 
@@ -411,10 +413,11 @@ evaluation = {'evaluation':
 
 <a name = "iris_cc"></a>
 #### Consolidating the Configuration
+----------------------------------------------
 
 Now that we have all of the functionality we need to run an experiment with the Iris dataset, we need to consolidate that into a single configuration object. This is typically done with the following structure.
 
-```
+```python
 dag_config = {
                 'data_sources':            data_sources,
                 'splitting':               splitting,
@@ -426,7 +429,7 @@ dag_config = {
 
 Almost done! We need to add a few final arguments to label our experiment and send the correct metadata to developers and users. First, we need to give the experiment a `dag_name`, shown below. The `dag` argument is a list of the parameters the user wants to pass directly to airflow about the management of its execution. More information about this section can be found in the Airflow documentation [here]().
 
-```
+```python
 airbender_config = { 
                         'dag_name': "Airbender_Iris_Demo",
                         
@@ -446,11 +449,12 @@ All finished! Now we are ready to generate the code for our Airbender DAG.
 
 <a name = "iris_gen"></a>
 #### Generate the Airbender DAG
+----------------------------------------------
 
 Once we have written a valid Airbender configuration, generating the code for the DAG is incredibly simple. All you need to do is give the configuration to Airbender's DAG generator, shown below.
 
 **`Input`**
-```
+```python
 #Imports
 from airbender.dag.generator import DagGenerator
 
