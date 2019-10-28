@@ -517,7 +517,7 @@ Displaying Ordered Dag Layers with Tags:
 Generated Airbender file with name: Airbender_Iris_Tutorial_airbender_10-28-2019--14.11.49.py
 ```
 
-Now our experiment has been converted into a DAG that is ready to run on Airflow. Note that Airbender intelligently imported all of the functions and classes we used in our configuration into the final file. You can view the file we just generated [here](https://github.com/SamShowalter/airbender/blob/master/tutorials/iris/<SOMEWHERE>). 
+Now our experiment has been converted into a DAG that is ready to run on Airflow. Note that Airbender intelligently imported all of the functions and classes we used in our configuration into the final file. You can view the file we just generated [here](https://github.com/SamShowalter/airbender/blob/master/tutorials/iris/Airbender_Iris_Tutorial_airbender_10-28-2019--15.26.01.py). 
 
 
 <a name = "iris_dag"></a>
