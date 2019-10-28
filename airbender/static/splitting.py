@@ -13,7 +13,7 @@
 # External Library and Module Imports
 #####################################################################################
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split as sk_train_test_split
 from sklearn.model_selection import KFold
 
 #####################################################################################
@@ -23,7 +23,7 @@ from sklearn.model_selection import KFold
 def train_test_split(data, target, test_ratio, random_state = 42):
 
 
-	train, test = train_test_split(data, 
+	train, test = sk_train_test_split(data, 
 										test_size = test_ratio, 
 										random_state = random_state)
 

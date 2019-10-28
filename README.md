@@ -43,7 +43,7 @@ Airbender allows developers to run nuanced machine learning experiments with Apa
     - [Conceptual vs. Physical DAG Layers](#conc_phys_dag_layer)
     - [Execution Order](#exec_order)
 - [Examples](#example)
-    - [Iris Dataset Example](#iris_overview)
+    - [Iris Classification](#iris_overview)
         - [Imports](#iris_imports)
         - [Reading in Data](#iris_rd)
         - [Exploratory Data Analysis](#iris_eda)
@@ -55,6 +55,7 @@ Airbender allows developers to run nuanced machine learning experiments with Apa
         - [Consolidate Configuration](#iris_cc)
         - [Generate Airbender DAG](#iris_gen)
         - [View and Run DAG in Airflow](#iris_dag)
+    - [Employee Attrition](#attr)
 - [Documentation](#docs)
 - [FAQs](#faq)
 - [Contribute](#contribute)
@@ -263,7 +264,7 @@ _We do not recommend editing the execution configuration._
 ## Examples
 
 <a name = "iris_overview"></a>
-### Iris Dataset Example
+### Example 1: Iris Classification 
 ----------------------------------------------
 Now that we have a good understanding of airbender's structure, let's consider an example with the Iris flower dataset. The dataset includes four features, listed below, and three classes we will try to predict. The goal is to build a model that can effectively determine the breed of the flower using only the length and width metrics provided in the feature set. 
 
@@ -339,10 +340,10 @@ For our Iris example, we will take a random, 25% slice of the data for our testi
 #Import splitting functionality
 from airbender.static.splitting import train_test_split
 
-splitting = {'train_test_split':
+splitting = {'sklearn':
 
-                            {train_test_split: {"target": "label",
-                                                "test_ratio": 0.25,
+                            {train_test_split: {"target":       "flower_label",
+                                                "test_ratio":   0.25,
                                                 "random_state": 42}
                             }
             }
@@ -365,7 +366,7 @@ preprocessing = {'missing_data':
 
                             {
                                 # tag name             # Operator Family
-                                'median_impute':       {impute: {'method': median}}
+                                'median_impute':       {impute: {'method': 'median'}}
                             }
                 }
 
@@ -394,7 +395,8 @@ feature_engineering = {'feature_engineering':
                                 'Sepal_Length':           None,
                                 'Petal_Length':           {winsorize:            {'limits': [0.05, 0.05]},
                                                            normalize_values:     None},
-                                'Petal_Width':            None
+                                # Pass through
+                                'Petal_Width':            None,
                                 'flower_label':           {label_encoder: None}
                             }
                       }
@@ -502,7 +504,16 @@ dg.generate_file()
 --------------------------------------------------
 **`Output`**
 ```
-<OUTPUT>
+Displaying Ordered Dag Layers with Tags:
+
+0 ['data_sources', 'iris']
+1 ['splitting', 'split']
+2 ['preprocessing', 'missing_data']
+3 ['feature_engineering', 'col_transformations']
+4 ['modeling', 'modeling']
+5 ['evaluation', 'metrics']
+
+Generated Airbender file with name: Airbender_Iris_Tutorial_airbender_10-28-2019--14.11.49.py
 ```
 
 Now our experiment has been converted into a DAG that is ready to run on Airflow. Note that Airbender intelligently imported all of the functions and classes we used in our configuration into the final file. You can view the file we just generated [here](<LINK TO OUTPUT FILE>). 
@@ -510,17 +521,25 @@ Now our experiment has been converted into a DAG that is ready to run on Airflow
 
 <a name = "iris_dag"></a>
 #### View and Run DAG in Airflow
+----------------------------------------------
 
 At this point, our job is finished. All we need to do is place this file into our airflow dag directory, turn on Airflow's scheduler and webserver, and watch the experiment run. While the experiment is running, you can track the progress of the DAG in real-time by with Airflow's tree or graph view, shown below.
 
-<IMAGE OF AIRFLOW DAG>
+**Generated Airbender DAG**
+<img src="https://i.ibb.co/dfkLgTg/iris-dag.jpg" alt="iris-dag" border="0">
     
 You can also analyze the content, input, output, and metadata of specific tasks by clicking on them and viewing the Airflow log. Airbender wraps all of your functions in decorators to ensure compatibility, but the task id will indicate which functions were run. If more information is needed, you may find it in the `params` log after clicking on a specific task instance, shown below.
 
-IMAGE OF TASK
+**Airbender Task Viewer in Airflow**
+<img src="https://i.ibb.co/4W7sB0z/iris-dag-task.jpg" alt="iris-dag-task" border="0">
 
-IMAGE OF TASK PARAMETERS
 
+### Example 2: Employee Attrition
+----------------------------------------------
+
+The Iris classification example is a relatively simple machine learning problem, even with the created data imperfections. For a more involved implementation of Airbender, please see the employee attrition data example, which leverages a synthetic dataset on Employee Attrition created by IBM.
+
+You can view the tutorial [here](https://github.com/SamShowalter/airbender/blob/master/tutorials/attrition/airbender_attrition_tutorial.ipynb)
 
 <a name = "docs"></a>
 ## Documentation
@@ -544,13 +563,13 @@ Yes! Airbender gives developers full control of Machine Learning experiments, an
 
 **Can I use external functionality (sklearn, scipy, etc.) with Airbender?**
 
-Yes! One of the amazing things about Airbender is external packages are completely supported since Airbender, at its core, is a meta-programming tool that reformats the functions and logic you provide into an Airflow ML experiment. **With that said**, there are exceptions to this rule. If your function has **artifacts** (e.g. mean and std for normalization), you will need to use the Airbender equivalent to ensure that there is no information leak between train and test datasets. Also, if a data operation **returns anything besides the transformed data**, you will need to use the Airbender equivalent there as well. 
+Yes! One of the amazing things about Airbender is external packages are completely supported since Airbender, at its core, is a meta-programming tool that reformats the functions and logic you provide into an Airflow ML experiment. **With that said**, there are exceptions to this rule. If your function has **artifacts** (e.g. mean and std for normalization), you will need to use the Airbender equivalent to ensure that there is no information leak between train and test datasets. Also, if a data operation **returns anything besides the transformed data in Pandas Series format**, you will need to use the Airbender equivalent or convert your operation to align with these constraints. 
 
 ---------------------------------------
 
 **Is Airbender optimized for small-dataset experiments?**
 
-No. Because Airflow has its own scheduler and keeps meticulous logging of the experimental DAG being run, it takes longer to run an entire experiment and store all of the information (milliseconds to seconds, depending on the complexity of the experiment. More tasks = longer runtime). However, Airbender logs all experiments, their metadata, and any other information the developer would like to track. For this reason, it is optimized for industrial-scale, big-data machine learning solutions where the overhead for logging is negligable. 
+No. Because Airflow has its own scheduler and keeps meticulous logging of the experimental DAG being run, it takes significantly longer to run an entire experiment and store all of the information (milliseconds to seconds, depending on the complexity of the experiment. More tasks = longer runtime). However, Airbender logs all experiments, their metadata, and any other information the developer would like to track. For this reason, it is optimized for industrial-scale, big-data machine learning solutions where the overhead for logging is negligable. 
 
 <a name = "contribute"></a>
 ## Contribute

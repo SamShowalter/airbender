@@ -49,17 +49,17 @@ def normalize_values(data, prefit = None):
         return data, prefit
 
 def encode_labels(data, prefit = None):
-
+    col_name = data.name
     le = None
 
     if prefit:
         
-        data = prefit['label_encoder'].transform(data)
+        data = pd.Series(prefit['label_encoder'].transform(data), name = col_name)
         return data
 
     else:
         le = LabelEncoder()
-        data = le.fit_transform(data)
+        data = pd.Series(le.fit_transform(data), name = col_name)
 
         return data, {'label_encoder': le}
 
