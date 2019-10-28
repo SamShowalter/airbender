@@ -323,7 +323,7 @@ data_sources = {'iris':         #Tag
 
 While there are methods of incorporating EDA into Airbender, these are not yet supported. Moreover, Airbender primarily functions as an experimentation tool for developers to use _after_ they have done EDA. Its focus is for quickly optimizing feature engineering and modeling with unbiased experiments. 
 
-You can view EDA for the Iris example [here]((https://github.com/SamShowalter/airbender/blob/master/tutorials/iris/airbender_iris_tutorial.ipynb))
+You can view EDA for the Iris example [here](https://github.com/SamShowalter/airbender/blob/master/tutorials/iris/airbender_iris_tutorial.ipynb)
 
 <a name = "iris_split"></a>
 #### Splitting Data
