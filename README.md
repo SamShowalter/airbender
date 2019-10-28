@@ -102,15 +102,15 @@ Airbender is configuration driven. While there are many different types of model
 6. **`modeling`** -- Training different statistical models and generating predictions for test/validation datasets
 7. **`evaluation`** -- Compare the performance of different models across different success criteria
 
-The names in bold above for each step represent the tag you must provide to the configuration you send to Airbender's `DagGenerator`. You do not have to include all of these steps (sometimes EDA may already be finished, or preprocessing is not needed) and within each step you have an immense amount of flexibility, but they keys of your JSON-style configuration must have of of the names listed above. A good template is shown below for this. You replace the `None` variable with your configuration for each step. 
+The names in bold above for each step represent the tag you must provide to the configuration you send to Airbender's `DagGenerator`. You do not have to include all of these steps (sometimes EDA may already be finished, or preprocessing is not needed) and within each step you have an immense amount of flexibility, but they keys of your JSON-style configuration must have of of the names listed above. A good template is shown below for this, just replace the `None` variable with your configuration for each step. 
 
-```{python}
+```python
 airbender_config = {
                     "data_sources": None,
-                    "eda":None,
+                    "eda":None,                        #Not yet supported
                     "splitting": None,
                     "preprocessing": None,
-                    "feature_engineering: None,
+                    "feature_engineering": None,
                     "modeling":None,
                     "evaluation":None
                    }
@@ -182,7 +182,7 @@ Lastly, there is a difference between a conceptual DAG layer and a physical DAG 
     { 
         'column_transformations': DagLayer(...),
         'bulk_transformations':   DagLayer(...),
-        ...
+        # ...
     }
     
 ```
@@ -195,9 +195,10 @@ Lastly, there is a difference between a conceptual DAG layer and a physical DAG 
 'feature_engineering':
 
     { 
-        "transformations': [DagLayer(...),      # Column transformations
+        "transformations": [DagLayer(...),      # Column transformations
                             DagLayer(...),      # Bulk transformations
-                            ...]
+                            # ...
+                           ]
     }
     
 ```
@@ -221,7 +222,7 @@ Lastly, there is a difference between a conceptual DAG layer and a physical DAG 
               }
         
             
-        "power_transformations': [DagLayer(...),      
+        "power_transformations": [DagLayer(...),      
                                   DagLayer(...),      
                                   ...]
     }
@@ -231,7 +232,7 @@ Lastly, there is a difference between a conceptual DAG layer and a physical DAG 
 <a name="exec_order"></a>
 ### Execution Order
 
-While the order of conceptual DAG layers is set by the execution configuration$^1$, physical DagLayer order is taken as-is from within each conceptual layer. Order is determined top-to-bottom and depth first. All nested DagLayers that belong to a single key will be ordered before the DagLayers of the following key. Please see the code and comments below for an example using **configuration 3**.
+While the order of conceptual DAG layers is set by the execution configuration, physical DagLayer order is taken as-is from within each conceptual layer. Order is determined top-to-bottom and depth first. All nested DagLayers that belong to a single key will be ordered before the DagLayers of the following key. Please see the code and comments below for an example using **configuration 3**.
 
 ```python
 'feature_engineering':
@@ -248,7 +249,7 @@ While the order of conceptual DAG layers is set by the execution configuration$^
               }
         
             
-        "power_transformations': [DagLayer(...),                             #Fifth                    
+        "power_transformations": [DagLayer(...),                             #Fifth                    
                                   DagLayer(...),                             #Sixth
                                   ...]                                       #...
     }
@@ -256,14 +257,17 @@ While the order of conceptual DAG layers is set by the execution configuration$^
 ```
 
 
-$^1$We do not recommend editing this configuration.
+_We do not recommend editing the execution configuration._
  
 <a name = "example"></a>
 ## Examples
 
 <a name = "iris_overview"></a>
 ### Iris Dataset Example
+----------------------------------------------
 Now that we have a good understanding of airbender's structure, let's consider an example with the Iris flower dataset. The dataset includes four features, listed below, and three classes we will try to predict. The goal is to build a model that can effectively determine the breed of the flower using only the length and width metrics provided in the feature set. 
+
+**See full code for experiment [here]()**
 
 ```
 Iris plants dataset
@@ -285,12 +289,18 @@ Iris plants dataset
 ```
 <a name = "iris_imports"></a>
 #### Imports
+----------------------------------------------
 
 Before we start, let's import Pandas and Airbender's `DagLayer` class so we can validate our steps.
+
+```python
+from airbender.dag.layers import DagLayer
+```
 
 
 <a name = "iris_rd"></a>
 #### Reading in Data
+----------------------------------------------
 
 Since this dataset is small and fairly simple, all we need to do is import the dataset. Airbender has provided a link to the dataset in the `tutorial` folder. To incorporate this into the experiment, we only need to write the following:
 
@@ -305,15 +315,18 @@ data_sources = {'iris':         #Tag
                }
 ```
 
-This will tell Airbender everything it needs to write a program to read in the Iris dataset. There are also ways to read in multiple datasets and flatten them. More information can be found in Airbender's API documentation.
 
 <a name = "iris_eda"></a>
 #### Exploratory Data Analysis
+----------------------------------------------
 
-While there are methods of incorporating EDA into Airbender, these are not yet supported. Moreover, Airbender primarily functions as an experimentation tool for developers to use _after_ they have done EDA. Its focus is for quickly optimizing feature engineering and modeling with unbiased experiments.
+While there are methods of incorporating EDA into Airbender, these are not yet supported. Moreover, Airbender primarily functions as an experimentation tool for developers to use _after_ they have done EDA. Its focus is for quickly optimizing feature engineering and modeling with unbiased experiments. 
+
+You can view EDA for the Iris example [here]()
 
 <a name = "iris_split"></a>
 #### Splitting Data
+----------------------------------------------
 
 One of the largest benefits of Airbender is the control is offers to ensure unbiased experimentation. Right after the data is read into Airbender, it is split into `train` and `test` datasets. For every `preprocessing` and `feature_engineering` operation, the train dataset is operated on first. If the operation had any artifacts (e.g. median imputation takes the median of the training dataset as its input value), those values **are passed to the testing dataset and applied directly**. In this way, the experiment is much more likely to be free of information leak.
 
@@ -337,19 +350,40 @@ splitting = {'train_test_split':
 
 <a name = "iris_p"></a>
 #### Preprocessing
+----------------------------------------------
 
-Fortunately for us, there are no missing data in our dataset. Therefore, we do not need any preprocessing. There are also no large outliers, but if there were we would use the `preprocessing` conceptual layer to handle those transformations.
+In this edited dataset, we can see that there are some missing values. The original Iris dataset did not have missing values, but we have added them artificially to better simulate an actual dataset. 
+
+To accommodate these missing values, we will use median imputation, provided by airbender. We need to use Airbender's label encoder function as label_encoder's ensure we attribute the same numeric label for each class across the train and test datasets. 
+
+```python
+
+#Imports
+from airbender.static.preprocessing import impute
+
+preprocessing = {'missing_data':
+
+                            {
+                                # tag name             # Operator Family
+                                'median_impute':       {impute: {'method': median}}
+                            }
+                }
+
+```
 
 <a name = "iris_fe"></a>
 #### Feature Engineering
+----------------------------------------------
 
 Feature engineering is the DagLayer where you can apply functions or series of function to specific data columns. You can also pass through columns that are already in a suitable modeling format by simply putting `None` in place of the operator and parameters dictionary.
 
-In this case, there is very little preprocessing that needs to be done. However, we will still demonstrate the basics of adding operators at a column level, even if it is not necessary for this dataset. 
+Based on our EDA, we noticed that `petal_length` appears to have one or more outliers. We will handle those by winsorizing them with 5%-95% bounds, then normalize the data. To demonstrate how to simply pass columns through to modeling, we will assume `sepal_length` and `petal_width` do not require feature engineering. 
+
+Lastly, we will need to encode `flower_label`.
 
 ```python
 #Imports
-from airbender.static.feature_engineering import normalize_values, winsorize
+from airbender.static.feature_engineering import normalize_values, winsorize, label_encoder
 
 feature_engineering = {'feature_engineering':
 
@@ -361,6 +395,7 @@ feature_engineering = {'feature_engineering':
                                 'Petal_Length':           {winsorize:            {'limits': [0.05, 0.05]},
                                                            normalize_values:     None},
                                 'Petal_Width':            None
+                                'flower_label':           {label_encoder: None}
                             }
                       }
 ```
@@ -415,12 +450,13 @@ evaluation = {'evaluation':
 #### Consolidating the Configuration
 ----------------------------------------------
 
-Now that we have all of the functionality we need to run an experiment with the Iris dataset, we need to consolidate that into a single configuration object. This is typically done with the following structure.
+Now that we have all of the functionality we need to run an experiment with the Iris dataset, we need to consolidate that into a single configuration object. This is typically done with the following structure. Note, you can write these steps in any order, as the conceptual DAG configuration will ensure correct order (e.g. `data_sources` is first, `evaluation` last).
 
 ```python
 dag_config = {
                 'data_sources':            data_sources,
                 'splitting':               splitting,
+                'preprocessing':           preprocessing,
                 'feature_engineering':     feature_engineering,
                 'modeling':                modeling,
                 'evaluation':              evaluation
@@ -434,7 +470,7 @@ airbender_config = {
                         'dag_name': "Airbender_Iris_Demo",
                         
                         'dag':      {
-                                        'owner': 'Sam Showalter',
+                                        'owner': 'airbender',
                                         # 'email': [<EMAIL>, <EMAIL>, ...],
                                         # 'op_args':{},
                                         # 'op_kwargs': {},
