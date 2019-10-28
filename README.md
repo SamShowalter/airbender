@@ -19,7 +19,7 @@
 <!-- Stability -->
     <img src = "https://img.shields.io/badge/Stability-experimental-FF9933.svg" 
          alt = "Stability" />
-</div>0
+</div>
 
 <div align="center">
   <sub>Built with :heart: by 
