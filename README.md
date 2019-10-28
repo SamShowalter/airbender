@@ -292,7 +292,7 @@ Iris plants dataset
 #### Imports
 ----------------------------------------------
 
-Before we start, let's import Pandas and Airbender's `DagLayer` class so we can validate our steps.
+Before we start, let's import Pandas and Airbender's `DagLayer` class so we can validate our configurations.
 
 ```python
 from airbender.dag.layers import DagLayer
@@ -303,17 +303,17 @@ from airbender.dag.layers import DagLayer
 #### Reading in Data
 ----------------------------------------------
 
-Since this dataset is small and fairly simple, all we need to do is import the dataset. Airbender has provided a link to the dataset in the `tutorial` folder. To incorporate this into the experiment, we only need to write the following:
+Since this implementation is small and fairly simple, all we need to do is import a single dataset. Airbender has provided a link to the dataset below. To incorporate data into the experiment, we only need to write the following:
 
 ```python
 data_sources = {'iris':         #Tag
-                    DagLayer(
-                                {'<-PATH TO IRIS DATASET->': {pd.read_csv: 
-                                                                {'sep': ','}},
-
-                                }
-                            )
-               }
+   DagLayer(
+            {
+             'https://raw.githubusercontent.com/SamShowalter/airbender/master/tutorials/iris/airbender_iris_demo.csv': \
+             {pd.read_csv: {'sep': ','}},
+            }
+           )
+              }
 ```
 
 
@@ -323,15 +323,15 @@ data_sources = {'iris':         #Tag
 
 While there are methods of incorporating EDA into Airbender, these are not yet supported. Moreover, Airbender primarily functions as an experimentation tool for developers to use _after_ they have done EDA. Its focus is for quickly optimizing feature engineering and modeling with unbiased experiments. 
 
-You can view EDA for the Iris example [here]()
+You can view EDA for the Iris example [here]((https://github.com/SamShowalter/airbender/blob/master/tutorials/iris/airbender_iris_tutorial.ipynb))
 
 <a name = "iris_split"></a>
 #### Splitting Data
 ----------------------------------------------
 
-One of the largest benefits of Airbender is the control is offers to ensure unbiased experimentation. Right after the data is read into Airbender, it is split into `train` and `test` datasets. For every `preprocessing` and `feature_engineering` operation, the train dataset is operated on first. If the operation had any artifacts (e.g. median imputation takes the median of the training dataset as its input value), those values **are passed to the testing dataset and applied directly**. In this way, the experiment is much more likely to be free of information leak.
+One of the largest benefits of Airbender is the control it offers to ensure unbiased experimentation. Right after the data is read into Airbender, it is split into train and test datasets. For every preprocessing and feature_engineering operation, the train dataset is operated on first. If the operation has any artifacts (e.g. median imputation takes the median of the training dataset as its imputation value), those values are passed to the testing dataset operators and applied directly. In this way, the experiment is much more likely to be free of information leak.
 
-Right now, Airbender only accommodates traditional train test splits with a single test slice. K-fold cross validation is coming as a new feature shortly, as is the ability to select a validation slice of data as well.
+Right now, Airbender only accommodates traditional train test splits with a single test slice. K-fold cross validation is coming as a new feature shortly, as is the ability to select a validation slice of data.
 
 For our Iris example, we will take a random, 25% slice of the data for our testing set. The configuration is outlined below.
 
@@ -340,12 +340,13 @@ For our Iris example, we will take a random, 25% slice of the data for our testi
 #Import splitting functionality
 from airbender.static.splitting import train_test_split
 
-splitting = {'sklearn':
+splitting = {'split':
 
-                            {train_test_split: {"target":       "flower_label",
-                                                "test_ratio":   0.25,
-                                                "random_state": 42}
-                            }
+                    DagLayer({'sklearn': {train_test_split: {"target": "flower_label",
+                                                            "test_ratio": 0.25,
+                                                            "random_state": 42}
+                                         }
+                            })
             }
 ```
 
@@ -353,22 +354,22 @@ splitting = {'sklearn':
 #### Preprocessing
 ----------------------------------------------
 
-In this edited dataset, we can see that there are some missing values. The original Iris dataset did not have missing values, but we have added them artificially to better simulate an actual dataset. 
+In this edited dataset, we can see that there are some missing values. The original Iris dataset did not have missing values, but we have added them artificially to better simulate an actual dataset.
 
-To accommodate these missing values, we will use median imputation, provided by airbender. We need to use Airbender's label encoder function as label_encoder's ensure we attribute the same numeric label for each class across the train and test datasets. 
+To accommodate these missing values, we will use median imputation, provided by airbender. We need to use Airbender's label encoder function as label_encoder's ensure we attribute the same numeric label for each class across the train and test datasets.
 
 ```python
-
 #Imports
 from airbender.static.preprocessing import impute
 
 preprocessing = {'missing_data':
 
-                            {
-                                # tag name             # Operator Family
-                                'median_impute':       {impute: {'method': 'median'}}
-                            }
+                            DagLayer({
+                                        # tag name             # Operator Family
+                                        'median_impute':       {impute: {'method': 'median'}}
+                                    })
                 }
+
 
 ```
 
@@ -376,29 +377,29 @@ preprocessing = {'missing_data':
 #### Feature Engineering
 ----------------------------------------------
 
-Feature engineering is the DagLayer where you can apply functions or series of function to specific data columns. You can also pass through columns that are already in a suitable modeling format by simply putting `None` in place of the operator and parameters dictionary.
+Feature engineering is the DagLayer where you can apply functions or series of function to specific data columns. You can also pass through columns that are already in a suitable modeling format by simply putting None in place of the operator and parameters dictionary.
 
-Based on our EDA, we noticed that `petal_length` appears to have one or more outliers. We will handle those by winsorizing them with 5%-95% bounds, then normalize the data. To demonstrate how to simply pass columns through to modeling, we will assume `sepal_length` and `petal_width` do not require feature engineering. 
+Based on our EDA, we noticed that `petal_length` appears to have one or more outliers. We will handle those by winsorizing them with 5%-95% bounds, then normalize the data. To demonstrate how to simply pass columns through to modeling, we will assume `sepal_length` and `petal_width` do not require feature engineering.
 
-Lastly, we will need to encode `flower_label`.
+Lastly, we will need to encode flower_label.
 
 ```python
-#Imports
-from airbender.static.feature_engineering import normalize_values, winsorize, label_encoder
+#Feature Engineering Imports
+from airbender.static.feature_engineering import normalize_values, winsorize, encode_labels
 
-feature_engineering = {'feature_engineering':
+feature_engineering = {'col_transformations':
 
-                            {
-                                # Column name             # Operator Family
-                                
-                                'Sepal_Width':            {normalize_values: None},
-                                'Sepal_Length':           None,
-                                'Petal_Length':           {winsorize:            {'limits': [0.05, 0.05]},
-                                                           normalize_values:     None},
-                                # Pass through
-                                'Petal_Width':            None,
-                                'flower_label':           {label_encoder: None}
-                            }
+                            DagLayer({
+                                        # Column name             # Operator Family
+
+                                        'sepal_width':            {normalize_values: None},
+                                        'sepal_length':           None,
+                                        'petal_length':           {winsorize:            {'limits': [0.05, 0.05]},
+                                                                   normalize_values:     None},
+                                        #Pass-through
+                                        'petal_width':            None,
+                                        'flower_label':           {encode_labels: None}
+                                    })
                       }
 ```
 
@@ -419,11 +420,11 @@ from sklearn.svm import SVC
 
 modeling = {'modeling': 
                 
-                {
-                    'LOG': {LogisticRegression:         {'solver':'lbfgs'}},           
-                    'RF':  {RandomForestClassifier:     {'n_estimators': 10}},
-                    'SVM': {SVC:                        {'kernel': 'linear'}}
-                }
+                DagLayer({
+                            'LOG': {LogisticRegression:         {'solver':'lbfgs'}},           
+                            'RF':  {RandomForestClassifier:     {'n_estimators': 10}},
+                            'SVM': {SVC:                        {'kernel': 'linear'}}
+                        })  
            }
 ```
 
@@ -437,14 +438,14 @@ Lastly, we need a way to determine which model is best suited to predict on this
 #Import evaluation metrics
 from sklearn.metrics import precision_score, recall_score, accuracy_score, f1_score
 
-evaluation = {'evaluation':
+evaluation = {'metrics':
                     
-                     {
-                        'acc':            {accuracy_score: None},
-                        'recall':         {precision_score: None},
-                        'precision':      {recall_score: None},
-                        'f1':             {f1_score: None}
-                     }
+                     DagLayer({
+                                'acc':            {accuracy_score:      None},
+                                'recall':         {precision_score:     {'average': 'weighted'}},
+                                'precision':      {recall_score:        {'average': 'weighted'}},
+                                'f1':             {f1_score:            {'average': 'weighted'}}
+                             })
              }
 ```
 
@@ -455,21 +456,21 @@ evaluation = {'evaluation':
 Now that we have all of the functionality we need to run an experiment with the Iris dataset, we need to consolidate that into a single configuration object. This is typically done with the following structure. Note, you can write these steps in any order, as the conceptual DAG configuration will ensure correct order (e.g. `data_sources` is first, `evaluation` last).
 
 ```python
-dag_config = {
+iris_config = {
                 'data_sources':            data_sources,
                 'splitting':               splitting,
                 'preprocessing':           preprocessing,
                 'feature_engineering':     feature_engineering,
                 'modeling':                modeling,
                 'evaluation':              evaluation
-             }
+              }
 ```
 
 Almost done! We need to add a few final arguments to label our experiment and send the correct metadata to developers and users. First, we need to give the experiment a `dag_name`, shown below. The `dag` argument is a list of the parameters the user wants to pass directly to airflow about the management of its execution. More information about this section can be found in the Airflow documentation [here]().
 
 ```python
 airbender_config = { 
-                        'dag_name': "Airbender_Iris_Demo",
+                        'dag_name': "Airbender_Iris_Tutorial",
                         
                         'dag':      {
                                         'owner': 'airbender',
@@ -479,7 +480,7 @@ airbender_config = {
                                     },
                                     
                         #DAG configuration we just created
-                        'config' : dag_config
+                        'config' : iris_config
                    }
 ```
 
@@ -516,7 +517,7 @@ Displaying Ordered Dag Layers with Tags:
 Generated Airbender file with name: Airbender_Iris_Tutorial_airbender_10-28-2019--14.11.49.py
 ```
 
-Now our experiment has been converted into a DAG that is ready to run on Airflow. Note that Airbender intelligently imported all of the functions and classes we used in our configuration into the final file. You can view the file we just generated [here](<LINK TO OUTPUT FILE>). 
+Now our experiment has been converted into a DAG that is ready to run on Airflow. Note that Airbender intelligently imported all of the functions and classes we used in our configuration into the final file. You can view the file we just generated [here](https://github.com/SamShowalter/airbender/blob/master/tutorials/iris/<SOMEWHERE>). 
 
 
 <a name = "iris_dag"></a>
