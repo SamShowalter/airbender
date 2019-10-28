@@ -25,12 +25,14 @@ REQUIRED = [
 
      #Scientific computing and data management
      'pandas', 'numpy', 'scipy',
+    
+     #Machine learning
      'sklearn', 
 ]
 
 # What packages are optional?
 EXTRAS = {
-    'airflow': ['airflow'],
+    'apache-airflow': ['apache-airflow'],
 }
 
 # The rest you shouldn't have to touch too much :)
