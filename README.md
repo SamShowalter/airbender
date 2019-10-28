@@ -33,7 +33,6 @@ Airbender allows developers to run nuanced machine learning experiments with Apa
 
 # Contents
 - [Overview](#overview)
-- [Dependencies](#deps)
 - [Installation](#install)
 - [Features](#features)
     - [Airbender Configuration](#air_config)
@@ -265,7 +264,7 @@ _We do not recommend editing the execution configuration._
 
 <a name = "iris_overview"></a>
 ### Example 1: Iris Classification 
-----------------------------------------------
+
 Now that we have a good understanding of airbender's structure, let's consider an example with the Iris flower dataset. The dataset includes four features, listed below, and three classes we will try to predict. The goal is to build a model that can effectively determine the breed of the flower using only the length and width metrics provided in the feature set. 
 
 **See full code for experiment [here]()**
