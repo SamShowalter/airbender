@@ -33,6 +33,7 @@ class DagSubLayer:
 		self.op_families = []
 		self.head = []
 		self.tail = []
+		self.pass_through_cols = []
 		self.num_families = 0
 
 

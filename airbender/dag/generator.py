@@ -166,7 +166,7 @@ class DagGenerator():
 		for item in self.layerbag:
 			if isinstance(item, DagLayer):
 				print(item.exec_order,
-					item.lineage, item.tag, item.conditional_mapping)
+					  item.lineage)
 
 		#Create output dag string
 		self.output_dag = self.output_dag.format(self.dag_name,
@@ -186,11 +186,11 @@ class DagGenerator():
 									  self.date]) + ".py"
 		
 		#Write the dag configuration
-		self.file_root = "../../../airflow/dags/"
+		self.file_root = "../../../../airflow/dags/"
 
 		#Used for debugging, can be removed
-		print("\nGenerated airflow file saved at: {}"\
-			.format(os.path.abspath(self.file_root + self.dag_filename)))
+		print("\nGenerated airflow file with name: {}"\
+			.format(os.path.abspath(self.dag_filename).split("/")[-1]))
 
 		#Write the file
 		with open(self.file_root + self.dag_filename, 'w') as file:

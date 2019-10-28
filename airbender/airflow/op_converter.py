@@ -72,7 +72,7 @@ def merge_data_operation(params, dag, **kwargs):
 			data[task_data.name] = task_data.values
 
 	#Only persist mentioned
-	data = data.loc[:,persist_cols]
+	data = data.loc[:,persist_cols + params['pass_through_cols']]
 
 	ti.xcom_push(key = params['split'], value = data)
 

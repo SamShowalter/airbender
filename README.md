@@ -550,7 +550,7 @@ Yes! One of the amazing things about Airbender is external packages are complete
 
 **Is Airbender optimized for small-dataset experiments?**
 
-No. Because Airflow has its own scheduler and keeps meticulous logging of the experimental DAG being run, it takes significantly longer to run an entire experiment and store all of the information (milliseconds to seconds, depending on the complexity of the experiment. More tasks = longer runtime). However, Airbender logs all experiments, their metadata, and any other information the developer would like to track. For this reason, it is optimized for industrial-scale, big-data machine learning solutions where the overhead for logging is negligable. 
+No. Because Airflow has its own scheduler and keeps meticulous logging of the experimental DAG being run, it takes longer to run an entire experiment and store all of the information (milliseconds to seconds, depending on the complexity of the experiment. More tasks = longer runtime). However, Airbender logs all experiments, their metadata, and any other information the developer would like to track. For this reason, it is optimized for industrial-scale, big-data machine learning solutions where the overhead for logging is negligable. 
 
 <a name = "contribute"></a>
 ## Contribute

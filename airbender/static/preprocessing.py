@@ -40,29 +40,6 @@ def impute(data, method = "median", prefit = None):
 	else:
 		return data, {'fill_na_vals': fill_na_vals}
 
-def winsorize(data, limits = [0.05, 0.05], prefit = None):
-
-	feature = data
-
-	lower = None
-	upper = None
-
-	if prefit:
-		lower = prefit['lower']
-		upper = prefit['upper']
-
-	else:
-		lower = feature.quantile(limits[0])
-		upper = feature.quantile(1 - limits[1])
-
-	#Winsorize
-	feature[feature > upper] = upper
-	feature[feature < lower] = lower
-
-	if prefit:
-		return feature
-		
-	return feature, {'upper': upper, 'lower': lower}
 
 
 

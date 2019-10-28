@@ -549,6 +549,8 @@ class DagLayer:
 		family_upstream_task = family 
 
 		#For operation in operator dictionary (all within one family)
+		if operator_dict is None:
+			operator_dict = {None: None}
 		for op in operator_dict.keys():
 
 			#Initialize params
@@ -572,90 +574,95 @@ class DagLayer:
 			#Add operation detail list of family operators 
 			#Could have multiple shell operators for one operation
 			#Therefore, we combine with list addition
-			family_ops += op_detail_list
+			#If the operations is a passthrough, there will be no operations to do
+			if op_detail_list is not None:
+				family_ops += op_detail_list
 
-			#After first iteration, all tasks inherit from upstream
-			#Need last item's task id to facilitate inheritance.
-			inherits = True
-			family_upstream_task = op_detail_list[-1].task_id
+				#After first iteration, all tasks inherit from upstream
+				#Need last item's task id to facilitate inheritance.
+
+				inherits = True
+				family_upstream_task = op_detail_list[-1].task_id
 
 		self.__store_op_family(parent, family, family_ops, holistic, conditional_mapping, split)
 
-
 	def __store_op_family(self, parent, family, family_ops, holistic, conditional_mapping, split):
+		
+		info = locals()
+		info.pop('self')
+		sublayer_ref = self.__find_op_family(**info)
 
-		#Create a family ID
-		#Verify correct formatting if there are filetypes
-		family_id = self.__create_family_id(family, split, conditional_mapping)
+		if len(family_ops) == 0:
+			sublayer_ref.pass_through_cols.append(family)
+
+		else:
+			#Create a family ID
+			#Verify correct formatting if there are filetypes
+			family_id = self.__create_family_id(family, split, conditional_mapping)
+			sublayer_ref.add_op_family(family_id, family_ops)
+
+
+	def __find_op_family(self, parent, family, family_ops, holistic, conditional_mapping, split):
+
 
 		#Determine which sublayer this family applies to
 		#Then add the task family to the layer
 		if not holistic and conditional_mapping == None:
 			if split:
-				self.sublayers.setdefault('core_' + split, 
-										DagSubLayer('core_' + split, self.holistic_order, self))\
-										.add_op_family(family_id, family_ops)
-
+				return self.sublayers.setdefault('core_' + split, 
+										DagSubLayer('core_' + split, self.holistic_order, self))
+										
 			else:
-				self.sublayers.setdefault('core', 
-										DagSubLayer('core', self.holistic_order, self))\
-										.add_op_family(family_id, family_ops)
+				return self.sublayers.setdefault('core', 
+										DagSubLayer('core', self.holistic_order, self))
+										
 
 		elif not holistic and conditional_mapping != None:
 
 			if split:
-				dsl = self.sublayers.setdefault('core', {})\
+				return self.sublayers.setdefault('core', {})\
 									.setdefault(split, {})\
 									.setdefault(conditional_mapping,
 									DagSubLayer("_".join([split,conditional_mapping]), 
 										self.holistic_order, self))
-
-				self.sublayers['core'][split][conditional_mapping].add_op_family(family_id, family_ops)
+									
 				
 			else:
-				dsl = self.sublayers.setdefault('core', {})\
+				return self.sublayers.setdefault('core', {})\
 									.setdefault(conditional_mapping,
 									DagSubLayer(conditional_mapping, 
 										self.holistic_order, self))
-
-				self.sublayers['core'][conditional_mapping].add_op_family(family_id, family_ops)
-				
 									
 		elif conditional_mapping != None:
 
+			self.merge_head = parent
+
 			if split:
-				dsl = self.sublayers.setdefault(parent + "_" + split, {})\
+				return self.sublayers.setdefault(parent + "_" + split, {})\
 									.setdefault(split, {})\
 									.setdefault(conditional_mapping,
 									DagSubLayer("_".join([parent, split, conditional_mapping]), 
 										self.holistic_order, self))
 
-				self.sublayers[parent][split][conditional_mapping].add_op_family(family_id, family_ops)
-				
-
 			else:
-				dsl = self.sublayers.setdefault(parent, {})\
+				return self.sublayers.setdefault(parent, {})\
 									.setdefault(conditional_mapping,
 									DagSubLayer(parent + "_" + conditional_mapping, 
 										self.holistic_order, self))
 
-				self.sublayers[parent][conditional_mapping].add_op_family(family_id, family_ops)
+		else:
 
 			self.merge_head = parent
 
-
-		else:
 			if split:
-				self.sublayers.setdefault(parent + split, 
+				return self.sublayers.setdefault(parent + split, 
 										DagSubLayer(parent + split, self.holistic_order, self))\
-										.add_op_family(family_id, family_ops)
-				self.merge_head = parent
-
+										
 			else:
-				self.sublayers.setdefault(parent, 
+				return self.sublayers.setdefault(parent, 
 										DagSubLayer(parent, self.holistic_order, self))\
-										.add_op_family(family_id, family_ops)
-				self.merge_head = parent
+			
+			
 
 
 	def __parse_tuple_task_family(self,
@@ -773,14 +780,16 @@ class DagLayer:
              'merge_layer': 
              				{'operator': merge_data_operation, 
              				'args': {'params': params,
-             				'merge_ids': self.__get_merge_ids(parent, conditional_mapping, split),
+             				'merge_ids': self.__get_merge_ids('head',parent, conditional_mapping, split),
+             				'pass_through_cols': self.__get_merge_ids('pass_through_cols',
+             															parent, conditional_mapping, split),
              				'split': split},
              				'task_tag': [self.tag, split, 'merge_layer']},
 
              'merge_metrics': 
              				{'operator': merge_metrics_operation, 
              				'args': {'params': params,
-             				'merge_ids': self.__get_merge_ids(parent, conditional_mapping, split),
+             				'merge_ids': self.__get_merge_ids('head', parent, conditional_mapping, split),
              				'model': conditional_mapping},
              				'task_tag': [self.tag, split, conditional_mapping, 'merge_metrics']},
 
@@ -828,6 +837,11 @@ class DagLayer:
 			op_detail_list:					List of operators (tasks) and their details for execution
 
 		'''
+
+		#Return nothing if the operator is None (pass-through)
+		if op is None:
+			return None
+
 		#Route all local vars except reference to self
 		info = locals()
 		info.pop('self')
@@ -1022,7 +1036,7 @@ class DagLayer:
 		#Return model object, unchanged
 		return model
 
-	def __get_merge_ids(self, parent, conditional_mapping = None, split = None):
+	def __get_merge_ids(self, return_type, parent, conditional_mapping = None, split = None):
 		'''
 		EXPERIMENTAL: May be a good way to 
 		generate all of the tasks for evaluation of 
@@ -1042,16 +1056,16 @@ class DagLayer:
 
 		if 'merge' in parent:
 			if conditional_mapping is not None and split is not None:
-				return self.sublayers['core' + split_str][conditional_mapping].head
+				return self.sublayers['core' + split_str][conditional_mapping].__dict__[return_type]
 
 			elif conditional_mapping:
-				return self.sublayers['core' + split_str][conditional_mapping].head
+				return self.sublayers['core' + split_str][conditional_mapping].__dict__[return_type]
 
 			elif split is not None:
-				return self.sublayers['core' + split_str].head
+				return self.sublayers['core' + split_str].__dict__[return_type]
 
 			else:
-				return self.sublayers[self.merge_head].head
+				return self.sublayers[self.merge_head].__dict__[return_type]
 
 
 

@@ -14,6 +14,7 @@
 #####################################################################################
 
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
 #####################################################################################
 # Class and Constructor
@@ -46,6 +47,45 @@ def normalize_values(data, prefit = None):
     else:
         prefit = {'mean': mean, 'std': std}
         return data, prefit
+
+def encode_labels(data, prefit = None):
+
+    le = None
+
+    if prefit:
+        
+        data = prefit['label_encoder'].transform(data)
+        return data
+
+    else:
+        le = LabelEncoder()
+        data = le.fit_transform(data)
+
+        return data, {'label_encoder': le}
+
+def winsorize(data, limits = [0.05, 0.05], prefit = None):
+
+    feature = data
+
+    lower = None
+    upper = None
+
+    if prefit:
+        lower = prefit['lower']
+        upper = prefit['upper']
+
+    else:
+        lower = feature.quantile(limits[0])
+        upper = feature.quantile(1 - limits[1])
+
+    #Winsorize
+    feature[feature > upper] = upper
+    feature[feature < lower] = lower
+
+    if prefit:
+        return feature
+        
+    return feature, {'upper': upper, 'lower': lower}
 
 def linear_transformation(data, method, prefit = None):
 

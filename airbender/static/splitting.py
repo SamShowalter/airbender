@@ -29,6 +29,7 @@ def train_test_split(data, target, test_ratio, random_state = 42):
 
 	return train, test, target
 
+
 def k_fold(data, target, k, random_state = 42, shuffle = True):
 
 	kf = KFold(n_splits = k, random_state = random_state, shuffle = shuffle)
