@@ -49,7 +49,10 @@ class DagGenerator():
 		self.dag_config = config['config']
 
 		#Owner of the experiment
-		self.author = self.config['dag']['owner']
+		try:
+			self.author = self.config['dag']['owner']
+		except:
+			raise AttributeError("DAG Owner not specified. Please specify an author and try again.")
 
 		#Name of the experiment
 		self.dag_name = self.config['dag_name']
