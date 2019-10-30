@@ -1,7 +1,7 @@
 #####################################################################################
 #
 #
-# 	Data splitting functions, WMP_ML
+# 	Airbender splitting functionality
 #  
 #	Author: Sam Showalter
 #	Date: October 6, 2018
