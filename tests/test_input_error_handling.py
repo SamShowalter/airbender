@@ -22,18 +22,13 @@ import copy
 #Data packages
 import pytest
 
-#Airbender
-sys.path.append(os.path.abspath(os.path.join(__file__, "../../")))
-import airbender
-from airbender.dag.generator import DagGenerator
-from airbender.dag.layers import DagLayer
-
 
 #####################################################################################
 # Test Class: Input Error Handling
 #####################################################################################
-		
+
 class TestDAGInputErrorHandling:
+
 	airbender_config = { 
                 'dag_name': "Airbender_Import_Tests",
                 
