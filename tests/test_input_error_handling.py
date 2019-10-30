@@ -31,10 +31,10 @@ from airbender.dag.generator import DagGenerator
 from airbender.dag.layers import DagLayer
 
 #####################################################################################
-# Test Class: Input Error Handling
+# Test Class: Meta Input Error Handling
 #####################################################################################
 
-class TestDAGInputErrorHandling:
+class TestDAGMetaInputErrorHandling:
 	airbender_config = { 
         'dag_name': "Airbender_Import_Tests",
         
@@ -57,5 +57,40 @@ class TestDAGInputErrorHandling:
 			del error_author_test['dag']['owner']
 			obtain_correct_import_validation(error_author_test)
 
-			assert "DAG Owner not specified. Please specify an author and try again."\
-					 in str(author_error.value)
+		assert "DAG Owner not specified. Please specify an author and try again."\
+				 in str(author_error.value)
+
+	@pytest.mark.parametrize("airbender_config", 
+		                     [(airbender_config)], 
+		                     ids = ["baseline"])
+	@pytest.mark.usefixtures("obtain_correct_import_validation")
+	def test_dag_name_missing(self, obtain_correct_import_validation, airbender_config):
+
+		with pytest.raises(AttributeError) as author_error:
+			error_author_test = copy.deepcopy(airbender_config)
+			del error_author_test['dag_name']
+			obtain_correct_import_validation(error_author_test)
+
+		assert "DAG Name not specified. Please specify a dag name and try again."\
+				 in str(author_error.value)
+
+	@pytest.mark.parametrize("airbender_config", 
+		                     [(airbender_config)], 
+		                     ids = ["baseline"])
+	@pytest.mark.usefixtures("obtain_correct_import_validation")
+	def test_dag_config_missing(self, obtain_correct_import_validation, airbender_config):
+
+		with pytest.raises(AttributeError) as author_error:
+			error_author_test = copy.deepcopy(airbender_config)
+			del error_author_test['config']
+			obtain_correct_import_validation(error_author_test)
+
+		assert "DAG Config not specified. Please specify a config and try again."\
+				 in str(author_error.value)
+
+#####################################################################################
+# Test Class: Input Config Error Handling
+#####################################################################################
+
+class TestDAGMetaInputErrorHandling:
+	pass

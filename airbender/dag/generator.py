@@ -46,7 +46,12 @@ class DagGenerator():
 
 		#Configuration variables
 		self.config = config
-		self.dag_config = config['config']
+
+		#Check to see if there is a dag config
+		try:
+			self.dag_config = config['config']
+		except:
+			raise AttributeError("DAG Config not specified. Please specify a config and try again.")
 
 		#Owner of the experiment
 		try:
@@ -55,7 +60,10 @@ class DagGenerator():
 			raise AttributeError("DAG Owner not specified. Please specify an author and try again.")
 
 		#Name of the experiment
-		self.dag_name = self.config['dag_name']
+		try:
+			self.dag_name = self.config['dag_name']
+		except:
+			raise AttributeError("DAG Name not specified. Please specify a dag name and try again.")
 
 		#Date of execution
 		self.date = datetime.now().strftime("%m-%d-%Y--%H.%M.%S")
