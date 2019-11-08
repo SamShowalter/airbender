@@ -29,8 +29,8 @@ import inspect
 from collections import OrderedDict
 
 # DAG information package specific information
-sys.path.append("../../")
 from airbender.dag.layers import DagLayer
+from airbender.dag.utils import is_callable
 
 
 #####################################################################################
@@ -76,6 +76,11 @@ class DagGenerator():
 		#Dag operator information
 		#Including operator families
 		self.tasks = set()
+
+		#Collection of operator families
+		self.op_family_ids = set()
+
+		#OPerator and op_family strings
 		self.operators = ''''''
 		self.op_families = ''''''
 		
@@ -107,13 +112,14 @@ class DagGenerator():
 		self.execution_hierarchy = None
 		with open(self.execution_hierarchy_config_path) as exec_config:
 			self.execution_hierarchy = json.load(exec_config)
-		
+
+		self.validate_dag_config()
 
 		#Dag argument defaults
 		self.dag_args = {
 						    'owner': 'airflow',
 						    'depends_on_past': False,
-						    'email': ['airflow@example.com'],
+						    'email': ['airbender@defaultemail.com'],
 						    'email_on_failure': False,
 						    'email_on_retry': False,
 						    'retries': 0,
@@ -251,6 +257,80 @@ class DagGenerator():
 			#If the item is a DagLayer Object
 			if isinstance(self.dag_config[key], DagLayer):
 				self.__rec_imports(self.dag_config[key].config)
+
+	def __validate_dag_config(self, lineage, sub_config):
+
+		if (not isinstance(sub_config, DagLayer) and 
+			isinstance(sub_config, dict)):
+			for key in sub_config:
+				if not isinstance(key, str):
+					raise AttributeError("""All keys in conceptual Dag Layer configuration must be strings.
+This ensures that all physical DAG layers have approparite tags for understandability.
+\nPlease check your config at the following lineage: {}""".format(lineage))
+				self.__validate_dag_config(lineage + [key], sub_config[key])
+
+		elif (isinstance(sub_config, set) or 
+			isinstance(sub_config, list)):
+			for dag_layer in sub_config:
+				if not isinstance(dag_layer, DagLayer):
+					raise AttributeError("""Found a non-DagLayer object in a list / set.
+Lists / sets can only contain DagLayers.
+Please track the provided lineage and check your inputs.
+\nLineage: {}""".format(lineage))
+
+		elif isinstance(sub_config, DagLayer):
+			#Appropriate mapping
+			return
+
+		else:
+			raise AttributeError("""Unexpected object found in the Dag Configuration.
+Key-Value pairs in the Dag Configuration must be one of the following:
+- String -> dictionary
+- String -> list or set (list preferred to maintain order)
+- String -> DagLayer
+\n Please check your inputs at lineage {}
+Type of object found: {}""".format(lineage, type(sub_config)))
+
+
+
+
+	def validate_dag_config(self):
+		'''
+		Validates configuration to ensure that it is of an 
+		acceptable structure. The configuration MUST be
+		represented in a python dictionary. Each operation 
+		must also be either None, or a sub-dictionary.
+
+		'''
+
+		if self.dag_config == {} or None:
+			raise AttributeError("""The Dag Generator configuration you provided is empty. 
+Please check your inputs.""")
+
+		#Must be a dictionary
+		if not isinstance(self.dag_config, dict):
+			raise AttributeError("""Airbender Dag configuration must be a dictionary. 
+Please check your inputs.""")
+
+		#For each key, the value must be None or a dictionary
+		for key in self.dag_config:
+
+			#Check information for operator families
+			if key not in list(self.execution_hierarchy.keys()):
+				raise AttributeError('''An unrecognized conceptual DAG layer (dag_config keyword) was discovered.
+\nValue found: {}
+\nMake sure all keys belong to execution hierarchy configuration.
+Valid conceptual dag layers were set for this experiment to be:\n
+ - {}'''.format(key, "\n - ".join(list(self.execution_hierarchy.keys()))))
+
+			if not any([isinstance(self.dag_config[key], dict),
+				   isinstance(self.dag_config[key], set),
+				   isinstance(self.dag_config[key], DagLayer)]):
+				raise AttributeError("""Conceptual Dag layer configuration must be a dictionary, DagLayer, or list.
+\nPlease check your inputs for conceptual Dag layer = {}
+Type of object that was found = {}""".format(key, type(self.dag_config[key])))
+
+			self.__validate_dag_config([key], self.dag_config[key])
 
 
 	def determine_layer_lineage(self):
@@ -408,19 +488,6 @@ class DagGenerator():
 			#Add item to the import check
 			self.import_check.add(obj)
 
-	def is_callable(self, obj):
-		'''
-		Determines whether or not obj is a
-		Python callable.
-
-		Args:
-			obj:			Potential Python object
-
-		'''
-		return any([inspect.isfunction(obj),
-				   inspect.ismethod(obj), 
-				   inspect.ismodule(obj),
-				   inspect.isclass(obj)])
 
 #####################################################################################
 # Supplemental Private Methods
@@ -509,6 +576,10 @@ class DagGenerator():
 		and parent hierarchy information needed to construct the
 		full graph.
 		"""
+		#Clear out existing layer in case things have changed
+		subsection.clear()
+
+		#Give new attributes and order to layer
 		layer_order = self.execution_hierarchy[lineage[0]]['order']
 		conditional_mapping = self.execution_hierarchy[lineage[0]]['map']
 		split = self.execution_hierarchy[lineage[0]]['split']
@@ -601,7 +672,7 @@ class DagGenerator():
 
 				#If the key is callable
 				#Import it dynamically
-				elif (self.is_callable(key) and not 
+				elif (is_callable(key) and not 
 					  isinstance(key, DagLayer)):
 
 					self.import_dynamically(key)
@@ -613,7 +684,7 @@ class DagGenerator():
 					#If the value is not a dag layer and is callable
 					#Import it dynamically
 					if (not isinstance(config_section[key], DagLayer) and
-						self.is_callable(config_section[key])):
+						is_callable(config_section[key])):
 
 						self.import_dynamically(config_section[key])
 

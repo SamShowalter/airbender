@@ -1,18 +1,19 @@
 #####################################################################################
 #
 #
-# 	Op_Families for new DAG: Owned by Sublayers
+# 	Operators for DAG: Owned by OpFamilies
 #  
 #	Author: Sam Showalter
 #	Date: October 3, 2018
 #
 #####################################################################################
 
-import pprint
-
 #####################################################################################
 # External Library and Module Imports
 #####################################################################################
+
+import pprint
+from airbender.dag.utils import is_callable
 
 #####################################################################################
 # Class and Constructor
@@ -123,9 +124,9 @@ class DagOperator:
 		if isinstance(params, dict):
 
 			for k,v in params.items():
-				if self.op_family.sublayer.layer.dag.is_callable(k):
+				if is_callable(k):
 					obj_dict[str(k)] = k
-				if self.op_family.sublayer.layer.dag.is_callable(v):
+				if is_callable(v):
 					obj_dict[str(v)] = v
 
 				if isinstance(v, dict):
