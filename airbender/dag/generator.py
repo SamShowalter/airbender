@@ -203,7 +203,8 @@ class DagGenerator():
 									  self.date]) + ".py"
 		
 		#Write the dag configuration
-		self.file_root = "../../../../airflow/dags/"
+		print(os.getcwd())
+		self.file_root = "../../../airflow/dags/"
 
 		#Used for debugging, can be removed
 		print("\nGenerated airflow file with name: {}"\
@@ -266,7 +267,8 @@ class DagGenerator():
 				if not isinstance(key, str):
 					raise AttributeError("""All keys in conceptual Dag Layer configuration must be strings.
 This ensures that all physical DAG layers have approparite tags for understandability.
-\nPlease check your config at the following lineage: {}""".format(lineage))
+\nPlease check your config at the following lineage: {}
+Data type of key found: {}""".format(lineage, type(key)))
 				self.__validate_dag_config(lineage + [key], sub_config[key])
 
 		elif (isinstance(sub_config, set) or 
@@ -276,7 +278,8 @@ This ensures that all physical DAG layers have approparite tags for understandab
 					raise AttributeError("""Found a non-DagLayer object in a list / set.
 Lists / sets can only contain DagLayers.
 Please track the provided lineage and check your inputs.
-\nLineage: {}""".format(lineage))
+\nLineage: {}
+Type of object found: {}""".format(lineage, type(dag_layer)))
 
 		elif isinstance(sub_config, DagLayer):
 			#Appropriate mapping

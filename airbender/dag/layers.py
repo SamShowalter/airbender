@@ -372,10 +372,10 @@ You must tag every operation or operator family that you intend to use.
 				.format(key, self.config[key]))
 			if (self.config[key] is not None and
 				not isinstance(self.config[key], dict)):
-					raise AttributeError('''Values in layer configuration key-value pairs must be one of the following:
+					raise AttributeError('''\nValues in layer configuration key-value pairs must be one of the following:
 - None: No additional arguments, a pass-through
 - Dict: Argument dictionary\n\nPlease check inputs for values associated with key =  {}.
-\nA value of type {} was recieved instead of a dictionary'''.format(key, type(self.config[key])))
+A value of type {} was recieved instead of a dictionary'''.format(key, type(self.config[key])))
 
 			if self.config[key] is not None:
 				#Check information for operators and their parameter sets
