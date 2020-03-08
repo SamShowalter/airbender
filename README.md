@@ -39,6 +39,8 @@ Airbender allows developers to run nuanced machine learning experiments with Apa
     - [Adding Code Functionality](#code_functionality)
     - [Operator Families and Sequencing](#op_families)
     - [DAG Layers](#dag_layers)
+    - [Acceptable DAG Configurations](#acc_dag_config)
+    - [Acceptable DAG Layer Configurations](#acc_dag_configurations)
     - [Conceptual vs. Physical DAG Layers](#conc_phys_dag_layer)
     - [Execution Order](#exec_order)
 - [Examples](#example)
@@ -168,6 +170,33 @@ DagLayer(
     }
 )
 ```
+
+
+<a name = "acc_dag_config"></a>
+### Acceptable DAG Configurations
+
+The DAG configuration is extremely flexible, but there are some general rules that need to be followed to create an effective experiment. First and foremost, all keys of the DAG configuration dictionary must be special keywords. Additionally, the subdictionary configuration corresponding to each key must look like one of the following:
+- DagLayer Object
+- Dictionary of tags (strings) for keys with DagLayer, subdictionary, or a list of DagLayers as the key's value.
+
+If you do not have any functionality for a conceptual DagLayer, there is no need to list the tag at all. If you do and provide the argument `None`, Airbender will throw an error and ask you to remove that section.
+
+<a name = "acc_dag_layer_configurations"></a>
+### Acceptable DAG Layer Configurations
+
+Within an Airbender DagLayer object, there is a fairly strict set of constraints. These are listed below
+- All DagLayers must be provided a configuration as a Python dictionary.
+- The DagLayer configuration dictionary cannot be empty.
+- All keys in the DagLayer configuration dictionary must be strings or tuples of strings. This can represent one of two things:
+    - For all conceptual layers except `data_sources` and `feature_engineering`: 
+        - Tag that states the gist of task (e.g. "LOG" for Logistic Regression)
+    - For the `data_sources` conceptual layer, it is the filepath(s) of the data source.
+    - For the `feature_engineering` conceptual layer, it is the name(s) of the column on which you are conducting operations.
+- All values for the keys in the DagLayer configuration must take one of two forms:
+    - `None`: This is the case if you are working under a `feature_engineering` conceptual layer and just want to pass a column through
+    - `Dict`: This dictionary needs to have the following format:
+        - Each key must be a callable (class or function)
+        - Each value must either be `None` or a dictionary with parameters to provide to the callable
 
 <a name = "conc_phys_dag_layer"></a>
 ### Conceptual vs. Physical DAG Layers

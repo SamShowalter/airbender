@@ -28,13 +28,13 @@ import json
 import inspect
 
 # Import package specific information
-sys.path.append("../../")
 from airbender.airflow.op_converter import *
 
 #Import SubLayer object
 from airbender.dag.sublayers import DagSubLayer
 from airbender.dag.op_families import OpFamily 
 from airbender.dag.operators import DagOperator
+from airbender.dag.utils import is_callable
 
 #####################################################################################
 # Class and Constructor
@@ -67,9 +67,6 @@ class DagLayer:
 		#Collection of sublayers
 		self.sublayers = {}
 		self.sublayer_order = []
-		
-		#Collection of operator families
-		self.family_ids = set()
 
 		#List of IDs needed to merge operators
 		self.merge_ids = {}
@@ -337,8 +334,13 @@ class DagLayer:
 		else:
 			self.__write_sublayer_associations(self.sublayer_order)
 
-
+#####################################################################################
+# Public Clearing Methods
+#####################################################################################
 	
+	def clear(self):
+		self = self.__init__(self.config)
+
 #####################################################################################
 # Public Validation Methods
 #####################################################################################
@@ -352,17 +354,46 @@ class DagLayer:
 
 		'''
 
+		if self.config == {} or None:
+			raise AttributeError("The DagLayer you provided is empty. Please check your inputs.")
+
 		#Must be a dictionary
 		if not isinstance(self.config, dict):
-			raise ValueError("Layer configuration object must be a dictionary. Please check your inputs.")
+			raise AttributeError("Layer configuration object must be a dictionary. Please check your inputs.")
 
 		#For each key, the value must be None or a dictionary
 		for key in self.config:
+
+			#Check information for operator families
+			if not isinstance(key, str) and not isinstance(key, tuple):
+				raise AttributeError('''All keys of a DagLayer configuration must be strings or tuples.
+You must tag every operation or operator family that you intend to use.
+\nPlease examine key: {} with value {}'''\
+				.format(key, self.config[key]))
 			if (self.config[key] is not None and
 				not isinstance(self.config[key], dict)):
-					raise ValueError('''Values in layer configuration key-value pairs must be one of the following:
-					- None: No additional arguments
-					- Dict: Argument dictionary\n\nPlease check inputs.''')
+					raise AttributeError('''\nValues in layer configuration key-value pairs must be one of the following:
+- None: No additional arguments, a pass-through
+- Dict: Argument dictionary\n\nPlease check inputs for values associated with key =  {}.
+A value of type {} was recieved instead of a dictionary'''.format(key, type(self.config[key])))
+
+			if self.config[key] is not None:
+				#Check information for operators and their parameter sets
+				for op_key in self.config[key]:
+					if (self.config[key][op_key] is not None and
+						not isinstance(self.config[key][op_key], dict)):
+							raise AttributeError('''Parameters for your operators must be represented in a dictionary format.
+None can be also provided if there are no parameters.
+\nPlease check your inputs for operator family {} with operator {} for further insight.
+The parameter was of type {} instead of a dictionary'''.format(key, op_key, type(self.config[key][op_key])))
+
+					if not is_callable(op_key):
+							raise AttributeError("""All keys in operator family dictionary must be callables (function, object, class, etc.).
+\nAn operator key within the {} operator_family with value(s) = {} is not a callable.
+The value was found to be: {}"""\
+.format(key, self.config[key][op_key], op_key))
+
+
 
 
 	def delineate(self, 
@@ -549,7 +580,7 @@ class DagLayer:
 		family_upstream_task = family 
 
 		#For operation in operator dictionary (all within one family)
-		if operator_dict is None:
+		if operator_dict is None or operator_dict == {}:
 			operator_dict = {None: None}
 		for op in operator_dict.keys():
 
@@ -710,7 +741,7 @@ class DagLayer:
 						split = None):
 		
 		#Holistic or custom operators may come in as strings
-		op_name = op.__name__ if self.dag.is_callable(op) else op
+		op_name = op.__name__ if is_callable(op) else op
 
 		#Operator router
 		#TODO: Find a better place to put this
@@ -962,9 +993,8 @@ class DagLayer:
 		#Raise an error if this task is already 
 		#defined in the dag
 		if task_id in self.dag.tasks:
-			raise AttributeError("Task with the same name (task_id = {})\
-							 has already been created. Check your inputs"\
-								.format(task_id))
+			raise AttributeError("""Task with the same name (task_id = {})
+has already been created. Check your inputs""".format(task_id))
 		
 		#Add the task ID to the dag
 		self.dag.tasks.add(task_id)
@@ -1004,12 +1034,12 @@ class DagLayer:
 			family_id = split + "_" + family_id
 
 		#Check to ensure that the specific family_id is not taken
-		if family_id in self.family_ids:
-			raise ValueError("A Task Family with the same ID has already been created.\n\
-							 Please check your inputs.")
+		if family_id in self.dag.op_family_ids:
+			raise ValueError("""A Task Family with the same ID has already been created.\n
+Please check your inputs, the task family in question = {}""".format(family_id))
 
 		#Add family_id to list
-		self.family_ids.add(family_id)
+		self.dag.op_family_ids.add(family_id)
 
 		#Return family id
 		return family_id
@@ -1030,7 +1060,7 @@ class DagLayer:
 		'''
 
 		#Set model to false until it has been evaluated
-		if self.dag.is_callable(model):
+		if is_callable(model):
 			self.dag.models[family] = False 
 
 		#Return model object, unchanged
