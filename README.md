@@ -1,4 +1,4 @@
-<div align = "center"><img src="https://i.ibb.co/4FNYYqT/Airbender.png" alt="Airbender"  border="0"></div>
+<div align = "center"><img src="imgs/airbender.png" alt="Airbender"  border="0"></div>
 
 <div align="center">
 <!-- Python -->
